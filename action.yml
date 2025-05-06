@@ -19,7 +19,7 @@ inputs:
     default: 'false'
   values:
     description: 'Values file'
-    default: 'values.yaml'
+    default: 'values.yml'
     required: false
   enabled:
     description: 'Enable the deployment of the crunchy database, easy switch to turn it on/off'
