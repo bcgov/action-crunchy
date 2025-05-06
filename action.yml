@@ -49,19 +49,6 @@ inputs:
   s3_endpoint:
     description: 'S3 endpoint'
     required: false
-  postgres_version:
-    description: 'Postgres version to use; e.g. 16, 15, Must check with platform team for supported versions'
-    required: true
-  postgis_version:
-    description: 'PostGIS version to use; e.g. 3.4, 3.3, 3.2'
-    required: false
-    default: ''
-  values_content:
-    description: 'Base64-encoded content of the values.yml file to use for the deployment'
-    required: true
-  values_url:
-    description: 'URL to the values.yml file to use for the deployment'
-    required: true
 
 runs:
   using: "composite"
@@ -154,14 +141,10 @@ runs:
               --set-string crunchy.pgBackRest.s3.secretKey=${{ inputs.s3_secret_key }} \
               --set-string crunchy.pgBackRest.s3.bucket=${{ inputs.s3_bucket }} \
               --set-string crunchy.pgBackRest.s3.endpoint=${{ inputs.s3_endpoint }} \
-              --set-string crunchy.postgresVersion=${{ inputs.postgres_version }} \
-              --set-string crunchy.postgisVersion=${{ inputs.postgis_version }} \
               --values ${{ inputs.values }} ${{steps.release_name.outputs.RELEASE_NAME}} \
               ./${{ github.event.repository.name }}-5.5.1.tgz
           else
             helm upgrade --install --wait --values ${{ inputs.values }} \
-            --set-string crunchy.postgresVersion=${{ inputs.postgres_version }} \
-            --set-string crunchy.postgisVersion=${{ inputs.postgis_version }} \
             ${{steps.release_name.outputs.RELEASE_NAME}} \
             ./${{ github.event.repository.name }}-5.5.1.tgz
           fi
