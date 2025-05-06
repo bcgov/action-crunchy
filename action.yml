@@ -91,7 +91,7 @@ runs:
         echo "RELEASE_NAME=${RELEASE_NAME}" >> $GITHUB_OUTPUT
         echo "Release name: ${RELEASE_NAME}"
         echo "CLUSTER_NAME=${RELEASE_NAME}-crunchy" >> $GITHUB_OUTPUT
-        echo "Cluster name:${RELEASE_NAME}-crunchy"
+        echo "Cluster name: ${RELEASE_NAME}-crunchy"
     - name: Deploy Database
       uses: bcgov/action-oc-runner@v1.2.0
       if: (github.event.action != 'closed') # avoid running on PR close event, which unnecessarily patches the cluster.
