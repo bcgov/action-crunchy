@@ -10,7 +10,7 @@ concurrency:
 
 jobs:
   deploy-db:
-    name: Deploys
+    name: Deploy Database
     uses: ./.github/workflows/.deployer.yml
     secrets:
       oc_namespace: ${{ secrets.oc_namespace }}
@@ -22,29 +22,10 @@ jobs:
       promote_tags: pr
       repository: bcgov/quickstart-openshift
 
-  csr-generator: # testing, will be deleted
-    name: Certificate Generation
-    uses: ./.github/workflows/csr-generator.yml
-    secrets:
-      oc_namespace: ${{ secrets.oc_namespace }}
-      oc_token: ${{ secrets.oc_token }}
-    with:
-      domain: example.gov.bc.ca
-      oc_server: https://api.silver.devops.gov.bc.ca:6443
-
   results:
     name: Results
-    needs: [builds, csr-generator, deploys, schema-spy, validate]
+    needs: [deploy-db]
     runs-on: ubuntu-24.04
     steps:
       - if: contains(needs.*.result, 'failure')||contains(needs.*.result, 'canceled')
         run: echo "At least one job has failed." && exit 1
-
-      - if: needs.deploys.outputs.triggered == 'true'
-        run: echo "Deploy triggered successfully!"
-
-      # - if: needs.deploys.outputs.triggered != 'true'
-      #   run: |
-      #     # Handle fail
-      #     echo "needs.deploys == ${{ toJson(needs.deploys) }}"
-      #     exit 1
