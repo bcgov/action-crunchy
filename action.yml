@@ -18,9 +18,8 @@ inputs:
     required: false
     default: 'false'
   values:
-    description: 'Values file'
-    default: 'values.yml'
-    required: false
+    description: 'Path to the values.yml file to use for the deployment'
+    required: true
   enabled:
     description: 'Enable the deployment of the crunchy database, easy switch to turn it on/off'
     default: 'true'
@@ -57,6 +56,13 @@ inputs:
     description: 'PostGIS version to use; e.g. 3.4, 3.3, 3.2'
     required: false
     default: ''
+  values_content:
+    description: 'Base64-encoded content of the values.yml file to use for the deployment'
+    required: true
+  values_url:
+    description: 'URL to the values.yml file to use for the deployment'
+    required: true
+
 runs:
   using: "composite"
   steps:
@@ -92,6 +98,41 @@ runs:
         echo "Release name: ${RELEASE_NAME}"
         echo "CLUSTER_NAME=${RELEASE_NAME}-crunchy" >> $GITHUB_OUTPUT
         echo "Cluster name: ${RELEASE_NAME}-crunchy"
+
+    - name: Validate values.yml file
+      shell: bash
+      run: |
+        if [ ! -f "${{ inputs.values }}" ]; then
+          echo "Error: The specified values.yml file does not exist: ${{ inputs.values }}"
+          exit 1
+        fi
+        echo "Using values.yml file: ${{ inputs.values }}"
+
+    - name: Decode and write values.yml file
+      shell: bash
+      run: |
+        echo "${{ inputs.values_content }}" | base64 -d > charts/crunchy/values.yml
+        echo "Decoded and wrote values.yml to charts/crunchy/values.yml"
+
+    - name: Copy values.yml to charts/crunchy
+      shell: bash
+      run: |
+        cp "${{ inputs.values }}" charts/crunchy/values.yml
+        echo "Copied values.yml to charts/crunchy/values.yml"
+
+    - name: Construct values.yml URL
+      id: construct_values_url
+      shell: bash
+      run: |
+        REPO_URL="https://raw.githubusercontent.com/${{ github.repository }}/${{ github.ref_name }}/values.yml"
+        echo "values_url=${REPO_URL}" >> $GITHUB_OUTPUT
+        echo "Constructed values.yml URL: ${REPO_URL}"
+
+    - name: Download values.yml file
+      shell: bash
+      run: |
+        curl -o charts/crunchy/values.yml "${{ steps.construct_values_url.outputs.values_url }}"
+        echo "Downloaded values.yml to charts/crunchy/values.yml"
 
     - name: Deploy Database
       uses: bcgov/action-oc-runner@v1.2.0
