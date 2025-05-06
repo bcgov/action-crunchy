@@ -20,8 +20,8 @@ jobs:
         id: deploy_db
         uses: ./
         with:
-          oc_namespace: ${{ secrets.oc_namespace }}
-          oc_server: ${{ secrets.oc_server }}
+          oc_namespace: ${{ vars.oc_namespace }}
+          oc_server: ${{ vars.oc_server }}
           oc_token: ${{ secrets.oc_token }}
           postgres_version: 16
           postgis_version: 3.4
