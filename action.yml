@@ -183,6 +183,7 @@ runs:
             echo "Error: Secret ${{steps.release_name.outputs.CLUSTER_NAME}}-pguser-app-${{ github.event.number }} was not created after 5 attempts."
             exit 1
           fi
+
     - name: Remove PR specific user from Crunchy DB # only for PRs and when PR is closed
       if: (github.event_name == 'pull_request' && github.event.action == 'closed')
       uses: bcgov/action-oc-runner@v1.2.0
