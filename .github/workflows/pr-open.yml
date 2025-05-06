@@ -11,16 +11,18 @@ concurrency:
 jobs:
   deploy-db:
     name: Deploy Database
-    uses: ./.github/workflows/.deployer.yml
-    secrets:
-      oc_namespace: ${{ secrets.oc_namespace }}
-      oc_token: ${{ secrets.oc_token }}
-    with:
-      atomic: false
-      crunchy: true
-      promote_images: backend frontend migrations
-      promote_tags: pr
-      repository: bcgov/quickstart-openshift
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Deploy Database
+        id: deploy_db
+        uses: ./
+        with:
+          oc_namespace: ${{ vars.oc_namespace }}
+          oc_server: ${{ vars.oc_server }}
+          oc_token: ${{ secrets.oc_token }}
+          postgres_version: 16
+          postgis_version: 3.4
 
   results:
     name: Results
