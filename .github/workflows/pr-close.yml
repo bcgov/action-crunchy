@@ -20,9 +20,9 @@ jobs:
         continue-on-error: true
         uses: bcgov/action-oc-runner@8e5c7737c90e5854c8378555aa933a8eb119ad83 # v1.2.0
         with:
-          oc_namespace: ${{ vars.oc_namespace }}
+          oc_namespace: ${{ secrets.oc_namespace }}
           oc_token: ${{ secrets.oc_token }}
-          oc_server: ${{ vars.oc_server }}
+          oc_server: ${{ secrets.oc_server }}
           commands: |
             # check if postgres-crunchy exists or else exit
             oc get PostgresCluster/postgres-crunchy || exit 0

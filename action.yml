@@ -189,7 +189,7 @@ runs:
       with:
         oc_namespace: ${{ secrets.oc_namespace }}
         oc_token: ${{ secrets.oc_token }}
-        oc_server: ${{ vars.oc_server }}
+        oc_server: ${{ inputs.oc_server }}
         triggers: ${{ inputs.triggers }}
         commands: |
           # check if postgres-crunchy exists or else exit
