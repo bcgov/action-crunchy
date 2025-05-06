@@ -8,6 +8,8 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.event.number }}
   cancel-in-progress: true
 
+permissions: {}
+
 jobs:
   deploy-db:
     name: Deploy Database
