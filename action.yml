@@ -55,7 +55,7 @@ runs:
       run: |
         # S3 configuration variables
         echo "Checking for S3 backup configuration..."
-        s3_vars=("inputs.s3_access_key" "inputs.s3_secret_key" "inputs.s3_bucket" "inputs.s3_endpoint")
+        s3_vars=("${{ inputs.s3_access_key }}" "${{ inputs.s3_secret_key }}" "${{ inputs.s3_bucket }}" "${{ inputs.s3_endpoint }}")
         s3_vars_set=0
 
         for var in "${s3_vars[@]}"; do
