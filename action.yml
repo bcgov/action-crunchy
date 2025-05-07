@@ -62,7 +62,7 @@ runs:
         done
 
         # Enable S3 backups if all required vars are set
-        if [ "$s3_vars_count" -eq ${#s3_vars[@]} ]; then
+        if [ "$s3_vars_count" -eq ${#s3_vars[@]}]; then
           echo "All S3 configuration variables are present. Enabling S3 backups."
           S3_ENABLED=true
         elif [ "$s3_vars_count" -gt 0 ]; then
@@ -87,9 +87,17 @@ runs:
         echo "Validated values.yml URL: ${VALUES_URL}"
 
         # Validate and send vars to GITHUB_ENV
-        all_vars=("s3_access_key" "s3_secret_key" "s3_bucket" "s3_endpoint" "RELEASE_NAME" "CLUSTER_NAME" "VALUES_URL")
-        for var_name in "${all_vars[@]}"; do
-          var_value="${{ inputs.${var_name} }}"
+        for var_name in "s3_access_key" "s3_secret_key" "s3_bucket" "s3_endpoint" "RELEASE_NAME" "CLUSTER_NAME" "VALUES_URL"; do
+          case "$var_name" in
+            "s3_access_key") var_value="${{ inputs.s3_access_key }}" ;;
+            "s3_secret_key") var_value="${{ inputs.s3_secret_key }}" ;;
+            "s3_bucket") var_value="${{ inputs.s3_bucket }}" ;;
+            "s3_endpoint") var_value="${{ inputs.s3_endpoint }}" ;;
+            "RELEASE_NAME") var_value="$RELEASE_NAME" ;;
+            "CLUSTER_NAME") var_value="$CLUSTER_NAME" ;;
+            "VALUES_URL") var_value="$VALUES_URL" ;;
+          esac
+
           if [ -n "$var_value" ]; then
             echo "${var_name}=${var_value}" >> $GITHUB_ENV
           else
