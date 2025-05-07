@@ -17,7 +17,7 @@ inputs:
     description: 'Enable S3 backups'
     required: false
     default: 'false'
-  values:
+  values_file:
     description: 'Path to the values.yml file to use for the deployment'
     required: true
   enabled:
@@ -89,22 +89,22 @@ runs:
     - name: Validate values.yml file
       shell: bash
       run: |
-        if [ ! -f "${{ inputs.values }}" ]; then
-          echo "Error: The specified values.yml file does not exist: ${{ inputs.values }}"
+        if [ ! -f "${{ inputs.values_file }}" ]; then
+          echo "Error: The specified values.yml file does not exist: ${{ inputs.values_file }}"
           exit 1
         fi
-        echo "Using values.yml file: ${{ inputs.values }}"
+        echo "Using values.yml file: ${{ inputs.values_file }}"
 
     - name: Decode and write values.yml file
       shell: bash
       run: |
-        echo "${{ inputs.values_content }}" | base64 -d > charts/crunchy/values.yml
+        echo "${{ inputs.values_file_content }}" | base64 -d > charts/crunchy/values.yml
         echo "Decoded and wrote values.yml to charts/crunchy/values.yml"
 
     - name: Copy values.yml to charts/crunchy
       shell: bash
       run: |
-        cp "${{ inputs.values }}" charts/crunchy/values.yml
+        cp "${{ inputs.values_file }}" charts/crunchy/values.yml
         echo "Copied values.yml to charts/crunchy/values.yml"
 
     - name: Construct values.yml URL
@@ -141,10 +141,10 @@ runs:
               --set-string crunchy.pgBackRest.s3.secretKey=${{ inputs.s3_secret_key }} \
               --set-string crunchy.pgBackRest.s3.bucket=${{ inputs.s3_bucket }} \
               --set-string crunchy.pgBackRest.s3.endpoint=${{ inputs.s3_endpoint }} \
-              --values ${{ inputs.values }} ${{steps.release_name.outputs.RELEASE_NAME}} \
+              --values ${{ inputs.values_file }} ${{steps.release_name.outputs.RELEASE_NAME}} \
               ./${{ github.event.repository.name }}-5.5.1.tgz
           else
-            helm upgrade --install --wait --values ${{ inputs.values }} \
+            helm upgrade --install --wait --values ${{ inputs.values_file }} \
             ${{steps.release_name.outputs.RELEASE_NAME}} \
             ./${{ github.event.repository.name }}-5.5.1.tgz
           fi
