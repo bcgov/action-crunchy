@@ -77,8 +77,6 @@ runs:
         fi
 
     - uses: actions/checkout@v4
-      with:
-        ref: ${{ inputs.ref }}
 
     - name: Release Name
       id: release_name
