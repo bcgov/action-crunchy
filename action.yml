@@ -74,6 +74,7 @@ runs:
 
         # Release Name; based on a hash of the repository name
         RELEASE_NAME=pg-$(echo -n "${{github.event.repository.name}}" | md5sum | cut -c 1-8)
+        CLUSTER_NAME=${RELEASE_NAME}-crunchy
 
         # Construct values.yml URL (ref_name = PR, ref_name = merge, default_branch = default)
         BRANCH_OR_REF="${{ github.head_ref || github.ref_name || github.event.repository.default_branch }}"
