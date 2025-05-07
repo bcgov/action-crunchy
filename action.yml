@@ -50,10 +50,9 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - name: Variables and Inputs
-      shell: bash
+    - shell: bash
       run: |
-        # S3 configuration variables
+        # Variables and Inputs
         echo "Checking for S3 backup configuration..."
         s3_vars=("${{ inputs.s3_access_key }}" "${{ inputs.s3_secret_key }}" "${{ inputs.s3_bucket }}" "${{ inputs.s3_endpoint }}")
         s3_vars_set=0
@@ -75,21 +74,21 @@ runs:
         echo "s3_enabled=${s3_enabled}"
         echo "s3_enabled=${s3_enabled}" >> $GITHUB_ENV
 
-    - name: Release Name
-      id: release_name
+    - id: release_name
       shell: bash
       run: |
+        # Release Name
         RELEASE_NAME=pg-$(echo -n "${{github.event.repository.name}}" | md5sum | cut -c 1-8)
         echo "RELEASE_NAME=${RELEASE_NAME}" >> $GITHUB_OUTPUT
         echo "Release name: ${RELEASE_NAME}"
         echo "CLUSTER_NAME=${RELEASE_NAME}-crunchy" >> $GITHUB_OUTPUT
         echo "Cluster name: ${RELEASE_NAME}-crunchy"
 
-    - name: Construct values.yml URL
-      id: construct_values_url
+    - id: construct_values_url
       if: github.event.action != 'closed'
       shell: bash
       run: |
+        # Construct values.yml URL
         # Determine the branch or ref to use for constructing the URL
         # ref_name = PR branch, ref_name = merge branch, default_branch = default branch
         BRANCH_OR_REF="${{ github.head_ref || github.ref_name || github.event.repository.default_branch }}"
@@ -97,10 +96,10 @@ runs:
         echo "values_url=${REPO_URL}" >> $GITHUB_OUTPUT
         echo "Constructed values.yml URL: ${REPO_URL}"
 
-    - name: Validate values.yml URL
-      if: github.event.action != 'closed'
+    - if: github.event.action != 'closed'
       shell: bash
       run: |
+        # Validate values.yml URL
         if ! curl --output /dev/null --silent --head --fail "${{ steps.construct_values_url.outputs.values_url }}"; then
           echo "Error: The constructed values.yml URL is invalid or inaccessible: ${{ steps.construct_values_url.outputs.values_url }}"
           exit 1
@@ -110,8 +109,7 @@ runs:
     - if: github.event.action != 'closed'
       uses: actions/checkout@v4
 
-    - name: Deploy Database
-      uses: bcgov/action-oc-runner@v1.2.1
+    - uses: bcgov/action-oc-runner@v1.2.1
       if: github.event.action != 'closed' # avoid running on PR close event, which unnecessarily patches the cluster.
       with:
         oc_namespace: ${{ inputs.oc_namespace }}
@@ -121,6 +119,7 @@ runs:
         ref: ${{ inputs.ref }}
         triggers: ${{ inputs.triggers }}
         commands: |
+          # Deploy Database
           echo 'Deploying crunchy helm chart'
           cd ${{ inputs.directory }}
 
@@ -163,8 +162,7 @@ runs:
             exit 1
           fi
 
-    - name: Add PR specific user to Crunchy DB
-      if: github.event_name == 'pull_request' && github.event.action != 'closed'
+    - if: github.event_name == 'pull_request' && github.event.action != 'closed'
       uses: bcgov/action-oc-runner@v1.2.1
       with:
         oc_namespace: ${{ inputs.oc_namespace }}
@@ -172,6 +170,7 @@ runs:
         oc_server: ${{ inputs.oc_server }}
         triggers: ${{ inputs.triggers }}
         commands: |
+          # Add PR specific user to Crunchy DB
           echo 'Adding PR specific user to Crunchy DB'
           NEW_USER='{"databases":["app-${{ github.event.number }}"],"name":"app-${{ github.event.number }}"}'
           CURRENT_USERS=$(oc get PostgresCluster/${{steps.release_name.outputs.CLUSTER_NAME}} -o json | jq '.spec.users')
@@ -204,8 +203,7 @@ runs:
             exit 1
           fi
 
-    - name: Remove PR specific user from Crunchy DB # only for PRs and when PR is closed
-      if: github.event_name == 'pull_request' && github.event.action == 'closed'
+    - if: github.event_name == 'pull_request' && github.event.action == 'closed'
       uses: bcgov/action-oc-runner@v1.2.1
       with:
         oc_namespace: ${{ inputs.oc_namespace }}
@@ -213,6 +211,7 @@ runs:
         oc_server: ${{ inputs.oc_server }}
         triggers: ${{ inputs.triggers }}
         commands: |
+          # Remove PR specific user from Crunchy DB
           # check if postgres-crunchy exists or else exit
           oc get PostgresCluster/${{steps.release_name.outputs.CLUSTER_NAME}} || exit 0
           # Remove the user from the crunchy cluster yaml and apply the changes
