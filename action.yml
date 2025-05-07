@@ -17,10 +17,9 @@ inputs:
     description: 'Enable S3 backups'
     required: false
     default: 'false'
-  values:
-    description: 'Values file'
-    default: 'values.yaml'
-    required: false
+  values_file:
+    description: 'Path to the values.yml file to use for the deployment'
+    required: true
   enabled:
     description: 'Enable the deployment of the crunchy database, easy switch to turn it on/off'
     default: 'true'
@@ -29,8 +28,9 @@ inputs:
     description: 'Paths used to trigger a deployment; e.g. (./backend/ ./frontend/)'
     required: false
   ref:
+    # This should be an empty string by default, but can be set to a specific branch/tag/sha
     description: 'Git ref to use; e.g. branch, tag, sha'
-    default: 'main'
+    default: ''
     required: false
   oc_namespace:
     description: 'OpenShift namespace'
@@ -50,18 +50,12 @@ inputs:
   s3_endpoint:
     description: 'S3 endpoint'
     required: false
-  postgres_version:
-    description: 'Postgres version to use; e.g. 16, 15, Must check with platform team for supported versions'
-    required: true
-  postgis_version:
-    description: 'PostGIS version to use; e.g. 3.4, 3.3, 3.2'
-    required: false
-    default: ''
+
 runs:
   using: "composite"
   steps:
     - name: Validate Inputs
-      if: inputs.s3_enabled == 'true'
+      if: inputs.s3_enabled == 'true' && github.event.action != 'closed'
       shell: bash
       run: |
         echo "S3 is enabled for backups, checking for mandatory secrets"
@@ -82,7 +76,9 @@ runs:
           exit 1
         fi
 
-    - uses: actions/checkout@v4
+    - if: github.event.action != 'closed'
+      uses: actions/checkout@v4
+
     - name: Release Name
       id: release_name
       shell: bash
@@ -93,18 +89,42 @@ runs:
         echo "CLUSTER_NAME=${RELEASE_NAME}-crunchy" >> $GITHUB_OUTPUT
         echo "Cluster name: ${RELEASE_NAME}-crunchy"
 
+    - name: Construct values.yml URL
+      id: construct_values_url
+      if: github.event.action != 'closed'
+      shell: bash
+      run: |
+        REPO_URL="https://raw.githubusercontent.com/${{ github.repository }}/${{ github.ref }}/${{ inputs.values_file }}"
+        echo "values_url=${REPO_URL}" >> $GITHUB_OUTPUT
+        echo "Constructed values.yml URL: ${REPO_URL}"
+
+    - name: Validate values.yml URL
+      if: github.event.action != 'closed'
+      shell: bash
+      run: |
+        if ! curl --output /dev/null --silent --head --fail "${{ steps.construct_values_url.outputs.values_url }}"; then
+          echo "Error: The constructed values.yml URL is invalid or inaccessible: ${{ steps.construct_values_url.outputs.values_url }}"
+          exit 1
+        fi
+        echo "Validated values.yml URL: ${{ steps.construct_values_url.outputs.values_url }}"
+
     - name: Deploy Database
-      uses: bcgov/action-oc-runner@v1.2.0
-      if: (github.event.action != 'closed') # avoid running on PR close event, which unnecessarily patches the cluster.
+      uses: bcgov/action-oc-runner@v1.2.1
+      if: github.event.action != 'closed' # avoid running on PR close event, which unnecessarily patches the cluster.
       with:
         oc_namespace: ${{ inputs.oc_namespace }}
         oc_token: ${{ inputs.oc_token }}
         oc_server: ${{ inputs.oc_server }}
+        repository: ${{ github.repository }}
         ref: ${{ inputs.ref }}
         triggers: ${{ inputs.triggers }}
         commands: |
           echo 'Deploying crunchy helm chart'
           cd ${{ inputs.directory }}
+
+          # Download values.yml file
+          curl -o ./values.yml "${{ steps.construct_values_url.outputs.values_url }}"
+          echo "Downloaded values.yml to ./values.yml (current directory: charts/crunchy)"
           sed -i 's/^name:.*/name: ${{ github.event.repository.name }}/' Chart.yaml
           helm package -u .
           if [ "${{ inputs.s3_enabled }}" == "true" ]; then
@@ -113,14 +133,12 @@ runs:
               --set-string crunchy.pgBackRest.s3.secretKey=${{ inputs.s3_secret_key }} \
               --set-string crunchy.pgBackRest.s3.bucket=${{ inputs.s3_bucket }} \
               --set-string crunchy.pgBackRest.s3.endpoint=${{ inputs.s3_endpoint }} \
-              --set-string crunchy.postgresVersion=${{ inputs.postgres_version }} \
-              --set-string crunchy.postgisVersion=${{ inputs.postgis_version }} \
-              --values ${{ inputs.values }} ${{steps.release_name.outputs.RELEASE_NAME}} \
+              ${{steps.release_name.outputs.RELEASE_NAME}} \
+              --values ./values.yml \
               ./${{ github.event.repository.name }}-5.5.1.tgz
           else
-            helm upgrade --install --wait --values ${{ inputs.values }} \
-            --set-string crunchy.postgresVersion=${{ inputs.postgres_version }} \
-            --set-string crunchy.postgisVersion=${{ inputs.postgis_version }} \
+            helm upgrade --install --wait \
+            --values ./values.yml \
             ${{steps.release_name.outputs.RELEASE_NAME}} \
             ./${{ github.event.repository.name }}-5.5.1.tgz
           fi
@@ -144,8 +162,8 @@ runs:
           fi
 
     - name: Add PR specific user to Crunchy DB
-      if: github.event_name == 'pull_request'
-      uses: bcgov/action-oc-runner@v1.2.0
+      if: github.event_name == 'pull_request' && github.event.action != 'closed'
+      uses: bcgov/action-oc-runner@v1.2.1
       with:
         oc_namespace: ${{ inputs.oc_namespace }}
         oc_token: ${{ inputs.oc_token }}
@@ -185,8 +203,8 @@ runs:
           fi
 
     - name: Remove PR specific user from Crunchy DB # only for PRs and when PR is closed
-      if: (github.event_name == 'pull_request' && github.event.action == 'closed')
-      uses: bcgov/action-oc-runner@v1.2.0
+      if: github.event_name == 'pull_request' && github.event.action == 'closed'
+      uses: bcgov/action-oc-runner@v1.2.1
       with:
         oc_namespace: ${{ inputs.oc_namespace }}
         oc_token: ${{ inputs.oc_token }}

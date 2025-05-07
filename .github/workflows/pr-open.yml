@@ -16,6 +16,9 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+
       - name: Deploy Database
         id: deploy_db
         uses: ./
@@ -23,8 +26,8 @@ jobs:
           oc_namespace: ${{ vars.oc_namespace }}
           oc_server: ${{ vars.oc_server }}
           oc_token: ${{ secrets.oc_token }}
-          postgres_version: 16
-          postgis_version: 3.4
+          ref: ${{ github.ref }}
+          values_file: values.yml
           s3_access_key: ${{ secrets.s3_access_key }}
           s3_secret_key: ${{ secrets.s3_secret_key }}
           s3_bucket: ${{ secrets.s3_bucket }}
