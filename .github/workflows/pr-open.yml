@@ -26,6 +26,7 @@ jobs:
           oc_namespace: ${{ vars.oc_namespace }}
           oc_server: ${{ vars.oc_server }}
           oc_token: ${{ secrets.oc_token }}
+          ref: ${{ github.ref }}
           values_file: values.yml
 
   results:

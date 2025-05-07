@@ -77,6 +77,9 @@ runs:
         fi
 
     - uses: actions/checkout@v4
+      with:
+        ref: ${{ inputs.ref }}
+
     - name: Release Name
       id: release_name
       shell: bash
@@ -119,6 +122,8 @@ runs:
         oc_namespace: ${{ inputs.oc_namespace }}
         oc_token: ${{ inputs.oc_token }}
         oc_server: ${{ inputs.oc_server }}
+        repository: ${{ github.event.repository.name }}
+        ref: ${{ inputs.ref }}
         triggers: ${{ inputs.triggers }}
         commands: |
           echo 'Deploying crunchy helm chart'
