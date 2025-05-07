@@ -120,7 +120,7 @@ runs:
         oc_namespace: ${{ inputs.oc_namespace }}
         oc_token: ${{ inputs.oc_token }}
         oc_server: ${{ inputs.oc_server }}
-        repository: ${{ github.event.repository.name }}
+        repository: bcgov/action-crunchy
         ref: ${{ inputs.ref }}
         triggers: ${{ inputs.triggers }}
         commands: |
