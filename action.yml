@@ -91,11 +91,11 @@ runs:
         echo "VALUES_URL=${VALUES_URL}" >> $GITHUB_ENV
 
         # Validate values.yml URL
-        if ! curl --output /dev/null --silent --head --fail "${{ VALUES_URL }}"; then
-          echo "Error: The constructed values.yml URL is invalid or inaccessible: ${{ VALUES_URL }}"
+        if ! curl --output /dev/null --silent --head --fail "${VALUES_URL}"; then
+          echo "Error: The constructed values.yml URL is invalid or inaccessible: ${VALUES_URL}"
           exit 1
         fi
-        echo "Validated values.yml URL: ${{ VALUES_URL }}"
+        echo "Validated values.yml URL: ${VALUES_URL}"
 
     - uses: actions/checkout@v4
       if: github.event.action != 'closed'
@@ -115,7 +115,7 @@ runs:
           cd ${{ inputs.directory }}
 
           # Download values.yml file
-          curl -o ./values.yml "${{ VALUES_URL }}"
+          curl -o ./values.yml "${VALUES_URL}"
           echo "Downloaded values.yml to ./values.yml (current directory: charts/crunchy)"
           sed -i 's/^name:.*/name: ${{ github.event.repository.name }}/' Chart.yaml
           helm package -u .
