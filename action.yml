@@ -107,6 +107,7 @@ runs:
       if: github.event.action != 'closed'
 
     - uses: bcgov/action-oc-runner@v1.2.1
+      id: deploy
       if: github.event.action != 'closed' # avoid running on PR close event, which unnecessarily patches the cluster.
       with:
         oc_namespace: "${{ inputs.oc_namespace }}"
@@ -136,13 +137,9 @@ runs:
               --set-string crunchy.pgBackRest.s3.bucket=${{ inputs.s3_bucket }} \
               --set-string crunchy.pgBackRest.s3.endpoint=${{ inputs.s3_endpoint }} \
               ${RELEASE_NAME} \
-              --values ./values.yml \
               ./${{ github.event.repository.name }}-5.5.1.tgz
           else
-            helm upgrade --install --wait \
-            --values ./values.yml \
-            ${RELEASE_NAME} \
-            ./${{ github.event.repository.name }}-5.5.1.tgz
+            helm upgrade --install --wait ${RELEASE_NAME} ./${{ github.event.repository.name }}-5.5.1.tgz
           fi
 
           # Verify successful db deployment; wait retry 10 times with 60 seconds interval
@@ -164,46 +161,40 @@ runs:
             exit 1
           fi
 
-    - if: github.event_name == 'pull_request' && github.event.action != 'closed'
-      uses: bcgov/action-oc-runner@v1.2.1
-      with:
-        oc_namespace: "${{ inputs.oc_namespace }}"
-        oc_token: "${{ inputs.oc_token }}"
-        oc_server: "${{ inputs.oc_server }}"
-        triggers: "${{ inputs.triggers }}"
-        commands: |
-          # Add PR specific user to Crunchy DB
-          echo 'Adding PR specific user to Crunchy DB'
-          NEW_USER='{"databases":["app-${{ github.event.number }}"],"name":"app-${{ github.event.number }}"}'
-          CURRENT_USERS=$(oc get PostgresCluster/"${CLUSTER_NAME}" -o json | jq '.spec.users')
-          echo "${CURRENT_USERS}"
+    - if: steps.deploy.outputs.triggered == 'true'
+      run: |
+        # Add PR specific user to Crunchy DB
+        echo "Adding PR specific user to Crunchy DB"
+        NEW_USER='{"databases":["app-${{ github.event.number }}"],"name":"app-${{ github.event.number }}"}'
+        CURRENT_USERS=$(oc get PostgresCluster/"${CLUSTER_NAME}" -o json | jq '.spec.users')
+        echo "${CURRENT_USERS}"
 
-          # check if current_users already contains the new_user
-          if echo "${CURRENT_USERS}" | jq -e ".[] | select(.name == \"app-${{ github.event.number }}\")" > /dev/null; then
-            echo "User already exists"
-            exit 0
+        # check if current_users already contains the new_user
+        if echo "${CURRENT_USERS}" | jq -e ".[] | select(.name == \"app-${{ github.event.number }}\")" > /dev/null; then
+          echo "User already exists"
+          exit 0
+        fi
+
+        UPDATED_USERS=$(echo "${CURRENT_USERS}" | jq --argjson NEW_USER "${NEW_USER}" '. + [$NEW_USER]')
+        PATCH_JSON=$(jq -n --argjson users "${UPDATED_USERS}" '{"spec": {"users": $users}}')
+        oc patch PostgresCluster/"${CLUSTER_NAME}" --type=merge -p "${PATCH_JSON}"
+        # wait for sometime as it takes time to create the user, query the secret and check if it is created, otherwise wait in a loop for 5 rounds
+        SECRET_FOUND=false
+        for i in {1..5}; do
+          if oc get secret "${CLUSTER_NAME}-pguser-app-${{ github.event.number }}" -o jsonpath='{.metadata.name}' > /dev/null 2>&1; then
+            echo "Secret created"
+            SECRET_FOUND=true
+            break
+          else
+            echo "Attempt $i: Secret not created, waiting for 60 seconds"
+            sleep 60
           fi
+        done
 
-          UPDATED_USERS=$(echo "${CURRENT_USERS}" | jq --argjson NEW_USER "${NEW_USER}" '. + [$NEW_USER]')
-          PATCH_JSON=$(jq -n --argjson users "${UPDATED_USERS}" '{"spec": {"users": $users}}')
-          oc patch PostgresCluster/"${CLUSTER_NAME}" --type=merge -p "${PATCH_JSON}"
-          # wait for sometime as it takes time to create the user, query the secret and check if it is created, otherwise wait in a loop for 5 rounds
-          SECRET_FOUND=false
-          for i in {1..5}; do
-            if oc get secret "${CLUSTER_NAME}-pguser-app-${{ github.event.number }}" -o jsonpath='{.metadata.name}' > /dev/null 2>&1; then
-              echo "Secret created"
-              SECRET_FOUND=true
-              break
-            else
-              echo "Attempt $i: Secret not created, waiting for 60 seconds"
-              sleep 60
-            fi
-          done
-
-          if [ "$SECRET_FOUND" = false ]; then
-            echo "Error: Secret ${CLUSTER_NAME}-pguser-app-${{ github.event.number }} was not created after 5 attempts."
-            exit 1
-          fi
+        if [ "$SECRET_FOUND" = false ]; then
+          echo "Error: Secret ${CLUSTER_NAME}-pguser-app-${{ github.event.number }} was not created after 5 attempts."
+          exit 1
+        fi
 
     - if: github.event_name == 'pull_request' && github.event.action == 'closed'
       uses: bcgov/action-oc-runner@v1.2.1
