@@ -55,7 +55,7 @@ runs:
   using: "composite"
   steps:
     - name: Validate Inputs
-      if: inputs.s3_enabled == 'true'
+      if: inputs.s3_enabled == 'true' && github.event.action != 'closed'
       shell: bash
       run: |
         echo "S3 is enabled for backups, checking for mandatory secrets"
@@ -76,10 +76,12 @@ runs:
           exit 1
         fi
 
-    - uses: actions/checkout@v4
+    - if: github.event.action != 'closed'
+      uses: actions/checkout@v4
 
     - name: Release Name
       id: release_name
+      if: github.event.action != 'closed'
       shell: bash
       run: |
         RELEASE_NAME=pg-$(echo -n "${{github.event.repository.name}}" | md5sum | cut -c 1-8)
@@ -90,6 +92,7 @@ runs:
 
     - name: Construct values.yml URL
       id: construct_values_url
+      if: github.event.action != 'closed'
       shell: bash
       run: |
         REPO_URL="https://raw.githubusercontent.com/${{ github.repository }}/${{ github.ref }}/${{ inputs.values_file }}"
@@ -97,6 +100,7 @@ runs:
         echo "Constructed values.yml URL: ${REPO_URL}"
 
     - name: Validate values.yml URL
+      if: github.event.action != 'closed'
       shell: bash
       run: |
         if ! curl --output /dev/null --silent --head --fail "${{ steps.construct_values_url.outputs.values_url }}"; then
@@ -107,7 +111,7 @@ runs:
 
     - name: Deploy Database
       uses: bcgov/action-oc-runner@v1.2.1
-      if: (github.event.action != 'closed') # avoid running on PR close event, which unnecessarily patches the cluster.
+      if: github.event.action != 'closed' # avoid running on PR close event, which unnecessarily patches the cluster.
       with:
         oc_namespace: ${{ inputs.oc_namespace }}
         oc_token: ${{ inputs.oc_token }}
@@ -159,7 +163,7 @@ runs:
           fi
 
     - name: Add PR specific user to Crunchy DB
-      if: github.event_name == 'pull_request'
+      if: github.event_name == 'pull_request' && github.event.action != 'closed'
       uses: bcgov/action-oc-runner@v1.2.1
       with:
         oc_namespace: ${{ inputs.oc_namespace }}
@@ -200,7 +204,7 @@ runs:
           fi
 
     - name: Remove PR specific user from Crunchy DB # only for PRs and when PR is closed
-      if: (github.event_name == 'pull_request' && github.event.action == 'closed')
+      if: github.event_name == 'pull_request' && github.event.action == 'closed'
       uses: bcgov/action-oc-runner@v1.2.1
       with:
         oc_namespace: ${{ inputs.oc_namespace }}
