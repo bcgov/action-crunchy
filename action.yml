@@ -86,16 +86,14 @@ runs:
         fi
         echo "Validated values.yml URL: ${VALUES_URL}"
 
-        # Iterate through a list of variables and check their values
-        echo "Summary of variables:"
-        for var_name in "s3_enabled" "RELEASE_NAME" "CLUSTER_NAME" "VALUES_URL"; do
+        # Validate and send vars to GITHUB_ENV
+        all_vars=("s3_access_key" "s3_secret_key" "s3_bucket" "s3_endpoint" "RELEASE_NAME" "CLUSTER_NAME" "VALUES_URL")
+        for var_name in "${all_vars[@]}"; do
           var_value="${{ inputs.${var_name} }}"
           if [ -n "$var_value" ]; then
-            echo "${var_name}=${var_value}"
             echo "${var_name}=${var_value}" >> $GITHUB_ENV
           else
-            echo "Error: ${var_name} is not set."
-            exit 1
+            echo "Warning: ${var_name} is not set."
           fi
         done
 
