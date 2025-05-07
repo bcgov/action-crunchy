@@ -81,7 +81,7 @@ runs:
         fi
         echo "Validated values.yml URL: ${VALUES_URL}"
 
-        # Iterate through variables and their values in pairs
+        # Process vars and send to GITHUB_ENV
         declare -A vars=(
           [s3_access_key]="${{ inputs.s3_access_key }}"
           [s3_secret_key]="${{ inputs.s3_secret_key }}"
@@ -136,10 +136,11 @@ runs:
               --set-string crunchy.pgBackRest.s3.secretKey=${{ inputs.s3_secret_key }} \
               --set-string crunchy.pgBackRest.s3.bucket=${{ inputs.s3_bucket }} \
               --set-string crunchy.pgBackRest.s3.endpoint=${{ inputs.s3_endpoint }} \
-              ${RELEASE_NAME} \
+              ${RELEASE_NAME} --values ./values.yml \
               ./${{ github.event.repository.name }}-5.5.1.tgz
           else
-            helm upgrade --install --wait ${RELEASE_NAME} ./${{ github.event.repository.name }}-5.5.1.tgz
+            helm upgrade --install --wait ${RELEASE_NAME} --values ./values.yml \
+              ./${{ github.event.repository.name }}-5.5.1.tgz
           fi
 
           # Verify successful db deployment; wait retry 10 times with 60 seconds interval
