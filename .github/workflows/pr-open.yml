@@ -16,6 +16,11 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+      - run: |
+          git rev-parse --abbrev-ref HEAD
+
       - name: Deploy Database
         id: deploy_db
         uses: ./
