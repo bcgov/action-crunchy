@@ -59,7 +59,7 @@ runs:
         s3_vars_set=0
 
         for var in "${s3_vars[@]}"; do
-          [ -n "${!var}" ] && s3_vars_set=$((s3_vars_set+1))
+          [ -n "$var" ] && s3_vars_set=$((s3_vars_set+1))
         done
 
         if [ "$s3_vars_set" -eq ${#s3_vars[@]} ]; then
