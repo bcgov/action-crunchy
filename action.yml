@@ -111,7 +111,7 @@ runs:
         echo "Downloaded values.yml to charts/crunchy/values.yml"
 
     - name: Deploy Database
-      uses: bcgov/action-oc-runner@v1.2.0
+      uses: bcgov/action-oc-runner@v1.2.1
       if: (github.event.action != 'closed') # avoid running on PR close event, which unnecessarily patches the cluster.
       with:
         oc_namespace: ${{ inputs.oc_namespace }}
@@ -157,7 +157,7 @@ runs:
 
     - name: Add PR specific user to Crunchy DB
       if: github.event_name == 'pull_request'
-      uses: bcgov/action-oc-runner@v1.2.0
+      uses: bcgov/action-oc-runner@v1.2.1
       with:
         oc_namespace: ${{ inputs.oc_namespace }}
         oc_token: ${{ inputs.oc_token }}
@@ -198,7 +198,7 @@ runs:
 
     - name: Remove PR specific user from Crunchy DB # only for PRs and when PR is closed
       if: (github.event_name == 'pull_request' && github.event.action == 'closed')
-      uses: bcgov/action-oc-runner@v1.2.0
+      uses: bcgov/action-oc-runner@v1.2.1
       with:
         oc_namespace: ${{ inputs.oc_namespace }}
         oc_token: ${{ inputs.oc_token }}
