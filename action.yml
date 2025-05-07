@@ -109,8 +109,6 @@ runs:
       run: |
         curl -o charts/crunchy/values.yml "${{ steps.construct_values_url.outputs.values_url }}"
         echo "Downloaded values.yml to charts/crunchy/values.yml"
-        cat charts/crunchy/values.yml
-        exit 1
 
     # TODO: pass values into oc-runner, which is using a fresh clone of master!
 
