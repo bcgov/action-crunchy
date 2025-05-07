@@ -86,21 +86,6 @@ runs:
         echo "CLUSTER_NAME=${RELEASE_NAME}-crunchy" >> $GITHUB_OUTPUT
         echo "Cluster name: ${RELEASE_NAME}-crunchy"
 
-    - name: Validate values.yml file
-      shell: bash
-      run: |
-        if [ ! -f "${{ inputs.values_file }}" ]; then
-          echo "Error: The specified values.yml file does not exist: ${{ inputs.values_file }}"
-          exit 1
-        fi
-        echo "Using values.yml file: ${{ inputs.values_file }}"
-
-    - name: Decode and write values.yml file
-      shell: bash
-      run: |
-        echo "${{ inputs.values_file_content }}" | base64 -d > charts/crunchy/values.yml
-        echo "Decoded and wrote values.yml to charts/crunchy/values.yml"
-
     - name: Copy values.yml to charts/crunchy
       shell: bash
       run: |
@@ -111,7 +96,7 @@ runs:
       id: construct_values_url
       shell: bash
       run: |
-        REPO_URL="https://raw.githubusercontent.com/${{ github.repository }}/${{ github.ref_name }}/values.yml"
+        REPO_URL="https://raw.githubusercontent.com/${{ github.repository }}/${{ github.ref_name }}/${{ inputs.values }}"
         echo "values_url=${REPO_URL}" >> $GITHUB_OUTPUT
         echo "Constructed values.yml URL: ${REPO_URL}"
 
@@ -144,7 +129,7 @@ runs:
               --values ${{ inputs.values_file }} ${{steps.release_name.outputs.RELEASE_NAME}} \
               ./${{ github.event.repository.name }}-5.5.1.tgz
           else
-            helm upgrade --install --wait --values ${{ inputs.values_file }} \
+            helm upgrade --install --wait --values values.yml \
             ${{steps.release_name.outputs.RELEASE_NAME}} \
             ./${{ github.event.repository.name }}-5.5.1.tgz
           fi
