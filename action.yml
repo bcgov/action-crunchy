@@ -81,7 +81,6 @@ runs:
 
     - name: Release Name
       id: release_name
-      if: github.event.action != 'closed'
       shell: bash
       run: |
         RELEASE_NAME=pg-$(echo -n "${{github.event.repository.name}}" | md5sum | cut -c 1-8)
