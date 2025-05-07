@@ -122,7 +122,6 @@ runs:
           # Download values.yml file
           curl -o ./values.yml "${{ steps.construct_values_url.outputs.values_url }}"
           echo "Downloaded values.yml to charts/crunchy/values.yml"
-          cat ./values.yml
           sed -i 's/^name:.*/name: ${{ github.event.repository.name }}/' Chart.yaml
           helm package -u .
           if [ "${{ inputs.s3_enabled }}" == "true" ]; then
