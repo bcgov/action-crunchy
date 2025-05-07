@@ -86,12 +86,6 @@ runs:
         echo "CLUSTER_NAME=${RELEASE_NAME}-crunchy" >> $GITHUB_OUTPUT
         echo "Cluster name: ${RELEASE_NAME}-crunchy"
 
-    - name: Copy values.yml to charts/crunchy
-      shell: bash
-      run: |
-        cp "${{ inputs.values_file }}" charts/crunchy/values.yml
-        echo "Copied values.yml to charts/crunchy/values.yml"
-
     - name: Construct values.yml URL
       id: construct_values_url
       shell: bash
