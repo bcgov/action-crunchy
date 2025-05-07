@@ -94,6 +94,15 @@ runs:
         echo "values_url=${REPO_URL}" >> $GITHUB_OUTPUT
         echo "Constructed values.yml URL: ${REPO_URL}"
 
+    - name: Validate values.yml URL
+      shell: bash
+      run: |
+        if ! curl --output /dev/null --silent --head --fail "${{ steps.construct_values_url.outputs.values_url }}"; then
+          echo "Error: The constructed values.yml URL is invalid or inaccessible: ${{ steps.construct_values_url.outputs.values_url }}"
+          exit 1
+        fi
+        echo "Validated values.yml URL: ${{ steps.construct_values_url.outputs.values_url }}"
+
     - name: Download values.yml file
       shell: bash
       run: |
