@@ -53,7 +53,8 @@ runs:
     - shell: bash
       run: |
         # Variables and Inputs
-        echo "Checking for S3 backup configuration..."
+
+        # S3 backup configuration
         s3_vars=("${{ inputs.s3_access_key }}" "${{ inputs.s3_secret_key }}" "${{ inputs.s3_bucket }}" "${{ inputs.s3_endpoint }}")
         s3_vars_set=0
 
@@ -74,37 +75,26 @@ runs:
         echo "s3_enabled=${s3_enabled}"
         echo "s3_enabled=${s3_enabled}" >> $GITHUB_ENV
 
-    - id: release_name
-      shell: bash
-      run: |
         # Release Name
         RELEASE_NAME=pg-$(echo -n "${{github.event.repository.name}}" | md5sum | cut -c 1-8)
-        echo "RELEASE_NAME=${RELEASE_NAME}" >> $GITHUB_OUTPUT
         echo "Release name: ${RELEASE_NAME}"
-        echo "CLUSTER_NAME=${RELEASE_NAME}-crunchy" >> $GITHUB_OUTPUT
+        echo "RELEASE_NAME=${RELEASE_NAME}" >> $GITHUB_ENV
         echo "Cluster name: ${RELEASE_NAME}-crunchy"
+        echo "CLUSTER_NAME=${RELEASE_NAME}-crunchy" >> $GITHUB_ENV
 
-    - id: construct_values_url
-      if: github.event.action != 'closed'
-      shell: bash
-      run: |
         # Construct values.yml URL
-        # Determine the branch or ref to use for constructing the URL
         # ref_name = PR branch, ref_name = merge branch, default_branch = default branch
         BRANCH_OR_REF="${{ github.head_ref || github.ref_name || github.event.repository.default_branch }}"
-        REPO_URL="https://raw.githubusercontent.com/${{ github.repository }}/${BRANCH_OR_REF}/${{ inputs.values_file }}"
-        echo "values_url=${REPO_URL}" >> $GITHUB_OUTPUT
-        echo "Constructed values.yml URL: ${REPO_URL}"
+        VALUES_URL="https://raw.githubusercontent.com/${{ github.repository }}/${BRANCH_OR_REF}/${{ inputs.values_file }}"
+        echo "VALUES_URL=${VALUES_URL}" >> $GITHUB_ENV
+        echo "Constructed values.yml URL: ${VALUES_URL}"
 
-    - if: github.event.action != 'closed'
-      shell: bash
-      run: |
         # Validate values.yml URL
-        if ! curl --output /dev/null --silent --head --fail "${{ steps.construct_values_url.outputs.values_url }}"; then
-          echo "Error: The constructed values.yml URL is invalid or inaccessible: ${{ steps.construct_values_url.outputs.values_url }}"
+        if ! curl --output /dev/null --silent --head --fail "${{ VALUES_URL }}"; then
+          echo "Error: The constructed values.yml URL is invalid or inaccessible: ${{ VALUES_URL }}"
           exit 1
         fi
-        echo "Validated values.yml URL: ${{ steps.construct_values_url.outputs.values_url }}"
+        echo "Validated values.yml URL: ${{ VALUES_URL }}"
 
     - if: github.event.action != 'closed'
       uses: actions/checkout@v4
@@ -124,7 +114,7 @@ runs:
           cd ${{ inputs.directory }}
 
           # Download values.yml file
-          curl -o ./values.yml "${{ steps.construct_values_url.outputs.values_url }}"
+          curl -o ./values.yml "${{ VALUES_URL }}"
           echo "Downloaded values.yml to ./values.yml (current directory: charts/crunchy)"
           sed -i 's/^name:.*/name: ${{ github.event.repository.name }}/' Chart.yaml
           helm package -u .
@@ -134,20 +124,20 @@ runs:
               --set-string crunchy.pgBackRest.s3.secretKey=${{ inputs.s3_secret_key }} \
               --set-string crunchy.pgBackRest.s3.bucket=${{ inputs.s3_bucket }} \
               --set-string crunchy.pgBackRest.s3.endpoint=${{ inputs.s3_endpoint }} \
-              ${{steps.release_name.outputs.RELEASE_NAME}} \
+              ${RELEASE_NAME} \
               --values ./values.yml \
               ./${{ github.event.repository.name }}-5.5.1.tgz
           else
             helm upgrade --install --wait \
             --values ./values.yml \
-            ${{steps.release_name.outputs.RELEASE_NAME}} \
+            ${RELEASE_NAME} \
             ./${{ github.event.repository.name }}-5.5.1.tgz
           fi
           # check if operator deployed the db successfully, retry 10 times with 60 seconds interval
           READY=false
           for i in {1..10}; do
             # Check if the 'db' instance has at least 1 ready replica
-            if oc get PostgresCluster/${{steps.release_name.outputs.RELEASE_NAME}}-crunchy -o json | jq -e '.status.instances[] | select(.name=="db") | .readyReplicas > 0' > /dev/null 2>&1; then
+            if oc get PostgresCluster/${RELEASE_NAME}-crunchy -o json | jq -e '.status.instances[] | select(.name=="db") | .readyReplicas > 0' > /dev/null 2>&1; then
               echo "Crunchy DB instance 'db' is ready "
               READY=true
               break
@@ -173,7 +163,7 @@ runs:
           # Add PR specific user to Crunchy DB
           echo 'Adding PR specific user to Crunchy DB'
           NEW_USER='{"databases":["app-${{ github.event.number }}"],"name":"app-${{ github.event.number }}"}'
-          CURRENT_USERS=$(oc get PostgresCluster/${{steps.release_name.outputs.CLUSTER_NAME}} -o json | jq '.spec.users')
+          CURRENT_USERS=$(oc get PostgresCluster/${CLUSTER_NAME} -o json | jq '.spec.users')
           echo "${CURRENT_USERS}"
 
           # check if current_users already contains the new_user
@@ -184,11 +174,11 @@ runs:
 
           UPDATED_USERS=$(echo "${CURRENT_USERS}" | jq --argjson NEW_USER "${NEW_USER}" '. + [$NEW_USER]')
           PATCH_JSON=$(jq -n --argjson users "${UPDATED_USERS}" '{"spec": {"users": $users}}')
-          oc patch PostgresCluster/${{steps.release_name.outputs.CLUSTER_NAME}} --type=merge -p "${PATCH_JSON}"
+          oc patch PostgresCluster/${CLUSTER_NAME} --type=merge -p "${PATCH_JSON}"
           # wait for sometime as it takes time to create the user, query the secret and check if it is created, otherwise wait in a loop for 5 rounds
           SECRET_FOUND=false
           for i in {1..5}; do
-            if oc get secret ${{steps.release_name.outputs.CLUSTER_NAME}}-pguser-app-${{ github.event.number }} -o jsonpath='{.metadata.name}' > /dev/null 2>&1; then
+            if oc get secret ${CLUSTER_NAME}-pguser-app-${{ github.event.number }} -o jsonpath='{.metadata.name}' > /dev/null 2>&1; then
               echo "Secret created"
               SECRET_FOUND=true
               break
@@ -199,7 +189,7 @@ runs:
           done
 
           if [ "$SECRET_FOUND" = false ]; then
-            echo "Error: Secret ${{steps.release_name.outputs.CLUSTER_NAME}}-pguser-app-${{ github.event.number }} was not created after 5 attempts."
+            echo "Error: Secret ${CLUSTER_NAME}-pguser-app-${{ github.event.number }} was not created after 5 attempts."
             exit 1
           fi
 
@@ -213,21 +203,21 @@ runs:
         commands: |
           # Remove PR specific user from Crunchy DB
           # check if postgres-crunchy exists or else exit
-          oc get PostgresCluster/${{steps.release_name.outputs.CLUSTER_NAME}} || exit 0
+          oc get PostgresCluster/${CLUSTER_NAME} || exit 0
           # Remove the user from the crunchy cluster yaml and apply the changes
           USER_TO_REMOVE='{"databases":["app-${{ github.event.number }}"],"name":"app-${{ github.event.number }}"}'
           
           echo 'getting current users from crunchy'
-          CURRENT_USERS=$(oc get PostgresCluster/${{steps.release_name.outputs.CLUSTER_NAME}} -o json | jq '.spec.users')
+          CURRENT_USERS=$(oc get PostgresCluster/${CLUSTER_NAME} -o json | jq '.spec.users')
           echo "${CURRENT_USERS}"
           
           # Remove the user from the list, 
           UPDATED_USERS=$(echo "${CURRENT_USERS}" | jq --argjson user "${USER_TO_REMOVE}" 'map(select(. != $user))')
           PATCH_JSON=$(jq -n --argjson users "${UPDATED_USERS}" '{"spec": {"users": $users}}')
-          oc patch PostgresCluster/${{steps.release_name.outputs.CLUSTER_NAME}} --type=merge -p "${PATCH_JSON}"
+          oc patch PostgresCluster/${CLUSTER_NAME} --type=merge -p "${PATCH_JSON}"
           
           # get primary crunchy pod and remove the role and db
-          CRUNCHY_PG_PRIMARY_POD_NAME=$(oc get pods -l postgres-operator.crunchydata.com/cluster=${{steps.release_name.outputs.CLUSTER_NAME}},postgres-operator.crunchydata.com/role=master -o json | jq -r '.items[0].metadata.name')
+          CRUNCHY_PG_PRIMARY_POD_NAME=$(oc get pods -l postgres-operator.crunchydata.com/cluster=${CLUSTER_NAME},postgres-operator.crunchydata.com/role=master -o json | jq -r '.items[0].metadata.name')
           
           echo "${CRUNCHY_PG_PRIMARY_POD_NAME}"
           # Terminate all connections to the database before trying terminate and Drop the databse and role right after
