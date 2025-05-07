@@ -56,18 +56,19 @@ runs:
 
         # S3 backup configuration
         s3_vars=("${{ inputs.s3_access_key }}" "${{ inputs.s3_secret_key }}" "${{ inputs.s3_bucket }}" "${{ inputs.s3_endpoint }}")
-        s3_vars_set=0
+        s3_vars_count=0
 
         for var in "${s3_vars[@]}"; do
-          [ -n "$var" ] && s3_vars_set=$((s3_vars_set+1))
+          [ -n "$var" ] && s3_vars_count=$((s3_vars_count+1))
         done
 
-        if [ "$s3_vars_set" -eq ${#s3_vars[@]} ]; then
+        if [ "$s3_vars_count" -eq ${#s3_vars[@]} ]; then
           echo "All S3 configuration variables are present. Enabling S3 backups."
           s3_enabled=true
-        elif [ "$s3_vars_set" -gt 0 ]; then
+        elif [ "$s3_vars_count" -gt 0 ]; then
           echo "Warning: Some S3 configuration variables are set, but not all. Please ensure all S3 variables are configured."
           s3_enabled=false
+          exit 1
         else
           echo "S3 configuration not set. Disabling S3 backups."
           s3_enabled=false
@@ -86,8 +87,8 @@ runs:
         # ref_name = PR branch, ref_name = merge branch, default_branch = default branch
         BRANCH_OR_REF="${{ github.head_ref || github.ref_name || github.event.repository.default_branch }}"
         VALUES_URL="https://raw.githubusercontent.com/${{ github.repository }}/${BRANCH_OR_REF}/${{ inputs.values_file }}"
-        echo "VALUES_URL=${VALUES_URL}" >> $GITHUB_ENV
         echo "Constructed values.yml URL: ${VALUES_URL}"
+        echo "VALUES_URL=${VALUES_URL}" >> $GITHUB_ENV
 
         # Validate values.yml URL
         if ! curl --output /dev/null --silent --head --fail "${{ VALUES_URL }}"; then
@@ -96,8 +97,8 @@ runs:
         fi
         echo "Validated values.yml URL: ${{ VALUES_URL }}"
 
-    - if: github.event.action != 'closed'
-      uses: actions/checkout@v4
+    - uses: actions/checkout@v4
+      if: github.event.action != 'closed'
 
     - uses: bcgov/action-oc-runner@v1.2.1
       if: github.event.action != 'closed' # avoid running on PR close event, which unnecessarily patches the cluster.
