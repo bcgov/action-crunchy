@@ -90,7 +90,7 @@ runs:
       id: construct_values_url
       shell: bash
       run: |
-        REPO_URL="https://raw.githubusercontent.com/${{ github.repository }}/${{ github.ref_name }}/${{ inputs.values }}"
+        REPO_URL="https://raw.githubusercontent.com/${{ github.repository }}/${{ github.ref_name }}/${{ inputs.values_file }}"
         echo "values_url=${REPO_URL}" >> $GITHUB_OUTPUT
         echo "Constructed values.yml URL: ${REPO_URL}"
 
