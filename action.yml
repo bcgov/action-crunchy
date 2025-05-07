@@ -109,6 +109,8 @@ runs:
       run: |
         curl -o charts/crunchy/values.yml "${{ steps.construct_values_url.outputs.values_url }}"
         echo "Downloaded values.yml to charts/crunchy/values.yml"
+        cat charts/crunchy/values.yml
+        exit 1
 
     - name: Deploy Database
       uses: bcgov/action-oc-runner@v1.2.1
