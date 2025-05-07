@@ -105,14 +105,6 @@ runs:
         fi
         echo "Validated values.yml URL: ${{ steps.construct_values_url.outputs.values_url }}"
 
-    - name: Download values.yml file
-      shell: bash
-      run: |
-        curl -o charts/crunchy/values.yml "${{ steps.construct_values_url.outputs.values_url }}"
-        echo "Downloaded values.yml to charts/crunchy/values.yml"
-
-    # TODO: pass values into oc-runner, which is using a fresh clone of master!
-
     - name: Deploy Database
       uses: bcgov/action-oc-runner@v1.2.1
       if: (github.event.action != 'closed') # avoid running on PR close event, which unnecessarily patches the cluster.
@@ -120,12 +112,17 @@ runs:
         oc_namespace: ${{ inputs.oc_namespace }}
         oc_token: ${{ inputs.oc_token }}
         oc_server: ${{ inputs.oc_server }}
-        repository: bcgov/action-crunchy
+        repository: ${{ github.repository }}
         ref: ${{ inputs.ref }}
         triggers: ${{ inputs.triggers }}
         commands: |
           echo 'Deploying crunchy helm chart'
           cd ${{ inputs.directory }}
+
+          # Download values.yml file
+          curl -o ./values.yml "${{ steps.construct_values_url.outputs.values_url }}"
+          echo "Downloaded values.yml to charts/crunchy/values.yml"
+
           sed -i 's/^name:.*/name: ${{ github.event.repository.name }}/' Chart.yaml
           helm package -u .
           if [ "${{ inputs.s3_enabled }}" == "true" ]; then
