@@ -62,7 +62,7 @@ runs:
         done
 
         # Enable S3 backups if all required vars are set
-        if [ "$s3_vars_count" -eq ${#s3_vars[@]}]; then
+        if [ "$s3_vars_count" -eq ${#s3_vars[@]} ]; then
           echo "All S3 configuration variables are present. Enabling S3 backups."
           S3_ENABLED=true
         elif [ "$s3_vars_count" -gt 0 ]; then
