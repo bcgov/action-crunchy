@@ -90,7 +90,10 @@ runs:
       if: github.event.action != 'closed'
       shell: bash
       run: |
-        REPO_URL="https://raw.githubusercontent.com/${{ github.repository }}/${{ github.ref_name }}/${{ inputs.values_file }}"
+        # Determine the branch or ref to use for constructing the URL
+        # ref_name = PR branch, ref_name = merge branch, default_branch = default branch
+        BRANCH_OR_REF="${{ github.head_ref || github.ref_name || github.event.repository.default_branch }}"
+        REPO_URL="https://raw.githubusercontent.com/${{ github.repository }}/${BRANCH_OR_REF}/${{ inputs.values_file }}"
         echo "values_url=${REPO_URL}" >> $GITHUB_OUTPUT
         echo "Constructed values.yml URL: ${REPO_URL}"
 
