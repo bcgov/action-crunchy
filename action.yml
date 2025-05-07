@@ -122,7 +122,7 @@ runs:
           # Download values.yml file
           curl -o ./values.yml "${{ steps.construct_values_url.outputs.values_url }}"
           echo "Downloaded values.yml to charts/crunchy/values.yml"
-
+          cat ./values.yml
           sed -i 's/^name:.*/name: ${{ github.event.repository.name }}/' Chart.yaml
           helm package -u .
           if [ "${{ inputs.s3_enabled }}" == "true" ]; then
@@ -132,9 +132,11 @@ runs:
               --set-string crunchy.pgBackRest.s3.bucket=${{ inputs.s3_bucket }} \
               --set-string crunchy.pgBackRest.s3.endpoint=${{ inputs.s3_endpoint }} \
               ${{steps.release_name.outputs.RELEASE_NAME}} \
+              --values ./values.yml \
               ./${{ github.event.repository.name }}-5.5.1.tgz
           else
             helm upgrade --install --wait \
+            --values ./values.yml \
             ${{steps.release_name.outputs.RELEASE_NAME}} \
             ./${{ github.event.repository.name }}-5.5.1.tgz
           fi
