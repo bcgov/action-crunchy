@@ -66,7 +66,7 @@ runs:
           echo "S3 configuration not set. Disabling S3 backups."
         fi
 
-        # Release Name; based on a hash of the repository name
+        # Release and cluster names; based on a hash of the repository name
         RELEASE_NAME=pg-$(echo -n "${{github.event.repository.name}}" | md5sum | cut -c 1-8)
         CLUSTER_NAME=${RELEASE_NAME}-crunchy
 
@@ -95,6 +95,7 @@ runs:
         for var_name in "${!vars[@]}"; do
           var_value="${vars[$var_name]}"
           if [ -n "$var_value" ]; then
+            echo "${var_name}=${var_value}"
             echo "${var_name}=${var_value}" >> $GITHUB_ENV
           else
             echo "Error: ${var_name} is not set."
