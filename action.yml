@@ -13,10 +13,6 @@ inputs:
   environment:
     description: 'Environment name; omit for PRs'
     required: false
-  s3_enabled:
-    description: 'Enable S3 backups'
-    required: false
-    default: 'false'
   values_file:
     description: 'Path to the values.yml file to use for the deployment'
     required: true
@@ -54,30 +50,30 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - name: Validate Inputs
-      if: inputs.s3_enabled == 'true' && github.event.action != 'closed'
+    - name: Variables and Inputs
       shell: bash
       run: |
-        echo "S3 is enabled for backups, checking for mandatory secrets"
-        if [ -z "${{ inputs.s3_access_key }}" ]; then
-          echo "S3 access key not found"
-          exit 1
-        fi
-        if [ -z "${{ inputs.s3_secret_key }}" ]; then
-          echo "S3 secret key not found"
-          exit 1
-        fi
-        if [ -z "${{ inputs.s3_bucket }}" ]; then
-          echo "S3 bucket not found"
-          exit 1
-        fi
-        if [ -z "${{ inputs.s3_endpoint }}" ]; then
-          echo "S3 endpoint not found"
-          exit 1
-        fi
+        # S3 configuration variables
+        echo "Checking for S3 backup configuration..."
+        s3_vars=("inputs.s3_access_key" "inputs.s3_secret_key" "inputs.s3_bucket" "inputs.s3_endpoint")
+        s3_vars_set=0
 
-    - if: github.event.action != 'closed'
-      uses: actions/checkout@v4
+        for var in "${s3_vars[@]}"; do
+          [ -n "${!var}" ] && s3_vars_set=$((s3_vars_set+1))
+        done
+
+        if [ "$s3_vars_set" -eq ${#s3_vars[@]} ]; then
+          echo "All S3 configuration variables are present. Enabling S3 backups."
+          s3_enabled=true
+        elif [ "$s3_vars_set" -gt 0 ]; then
+          echo "Warning: Some S3 configuration variables are set, but not all. Please ensure all S3 variables are configured."
+          s3_enabled=false
+        else
+          echo "S3 configuration not set. Disabling S3 backups."
+          s3_enabled=false
+        fi
+        echo "s3_enabled=${s3_enabled}"
+        echo "s3_enabled=${s3_enabled}" >> $GITHUB_ENV
 
     - name: Release Name
       id: release_name
@@ -108,6 +104,9 @@ runs:
         fi
         echo "Validated values.yml URL: ${{ steps.construct_values_url.outputs.values_url }}"
 
+    - if: github.event.action != 'closed'
+      uses: actions/checkout@v4
+
     - name: Deploy Database
       uses: bcgov/action-oc-runner@v1.2.1
       if: github.event.action != 'closed' # avoid running on PR close event, which unnecessarily patches the cluster.
@@ -127,7 +126,7 @@ runs:
           echo "Downloaded values.yml to ./values.yml (current directory: charts/crunchy)"
           sed -i 's/^name:.*/name: ${{ github.event.repository.name }}/' Chart.yaml
           helm package -u .
-          if [ "${{ inputs.s3_enabled }}" == "true" ]; then
+          if [ "$s3_enabled" == "true" ]; then
             helm upgrade --install --wait --set crunchy.pgBackRest.s3.enabled=true \
               --set-string crunchy.pgBackRest.s3.accessKey=${{ inputs.s3_access_key }} \
               --set-string crunchy.pgBackRest.s3.secretKey=${{ inputs.s3_secret_key }} \
