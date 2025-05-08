@@ -181,23 +181,22 @@ runs:
         triggers: "${{ inputs.triggers }}"
         commands: |
           # Remove PR specific user from Crunchy DB
-          # Cluster name; based on a hash of the repository name
-          CLUSTER_NAME=pg-$(echo -n "${{github.event.repository.name}}" | md5sum | cut -c 1-8)-crunchy
-
+          CLUSTER=PostgresCluster/"${CLUSTER_NAME}"
+          echo "Removing user from Crunchy DB for PR #${{ github.event.number }} in cluster ${CLUSTER}"
           # Check if postgres-crunchy exists or else exit
-          oc get PostgresCluster/"${CLUSTER_NAME}" || exit 0
+          oc get "${CLUSTER}" || exit 0
 
           # Remove the user from the crunchy cluster yaml and apply the changes
           USER_TO_REMOVE='{"databases":["app-${{ github.event.number }}"],"name":"app-${{ github.event.number }}"}'
           
           echo 'getting current users from crunchy'
-          CURRENT_USERS=$(oc get PostgresCluster/"${CLUSTER_NAME}" -o json | jq '.spec.users')
+          CURRENT_USERS=$(oc get "${CLUSTER}" -o json | jq '.spec.users')
           echo "${CURRENT_USERS}"
           
           # Remove the user from the list, 
           UPDATED_USERS=$(echo "${CURRENT_USERS}" | jq --argjson user "${USER_TO_REMOVE}" 'map(select(. != $user))')
           PATCH_JSON=$(jq -n --argjson users "${UPDATED_USERS}" '{"spec": {"users": $users}}')
-          oc patch PostgresCluster/"${CLUSTER_NAME}" --type=merge -p "${PATCH_JSON}"
+          oc patch "${CLUSTER}" --type=merge -p "${PATCH_JSON}"
           
           # get primary crunchy pod and remove the role and db
           CRUNCHY_PG_PRIMARY_POD_NAME=$(oc get pods -l postgres-operator.crunchydata.com/cluster="${CLUSTER_NAME}",postgres-operator.crunchydata.com/role=master -o json | jq -r '.items[0].metadata.name')
