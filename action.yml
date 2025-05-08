@@ -132,10 +132,10 @@ runs:
         triggers: "${{ inputs.triggers }}"
         commands: |
           # Check if S3 inputs are provided and construct the deploy_db.sh command accordingly
-          PARAMS="'${{ inputs.directory }}' '${VALUES_URL}' '${{ github.event.repository.name }}' '${RELEASE_NAME}'"
+          PARAMS="${{ inputs.directory }} ${VALUES_URL} ${{ github.event.repository.name }} ${RELEASE_NAME}"
 
           if [ -n "${{ inputs.s3_access_key }}" ] && [ -n "${{ inputs.s3_secret_key }}" ] && [ -n "${{ inputs.s3_bucket }}" ] && [ -n "${{ inputs.s3_endpoint }}" ]; then
-            PARAMS+=" '${{ inputs.s3_access_key }}' '${{ inputs.s3_secret_key }}' '${{ inputs.s3_bucket }}' '${{ inputs.s3_endpoint }}'"
+            PARAMS+=" ${{ inputs.s3_access_key }} ${{ inputs.s3_secret_key }} ${{ inputs.s3_bucket }} ${{ inputs.s3_endpoint }}"
           fi
 
           # Execute the deploy command
