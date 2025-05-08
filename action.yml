@@ -100,7 +100,12 @@ runs:
         echo "Validated values.yml URL: ${VALUES_URL}"
 
         # Process vars and send to GITHUB_ENV
-        for var in "S3_ENABLED" "RELEASE_NAME" "CLUSTER_NAME" "VALUES_URL"; do
+        if [ "${{ github.event.action }}" != "closed" ]; then
+          vars=(S3_ENABLED RELEASE_NAME CLUSTER_NAME VALUES_URL)
+        else
+          vars=(RELEASE_NAME CLUSTER_NAME)
+        fi
+        for var in "${vars[@]}"; do
           if [ -n "${!var}" ]; then
             echo "${var}=${!var}"
             echo "${var}=${!var}" >> $GITHUB_ENV

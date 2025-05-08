@@ -52,3 +52,13 @@ if [ "$SECRET_FOUND" = false ]; then
   echo "Error: Secret ${CLUSTER_NAME}-pguser-app-${PR_NO} was not created after 5 attempts."
   exit 1
 fi
+
+# Iterate over the array of variables
+for var in "${vars[@]}"; do
+  if [ -n "${!var}" ]; then
+    echo "${var}=${!var}"
+  else
+    echo "Warning: ${var} is not set."
+    exit 1
+  fi
+done
