@@ -74,13 +74,6 @@ runs:
         BRANCH_OR_REF="${{ github.head_ref || github.ref_name || github.event.repository.default_branch }}"
         VALUES_URL="https://raw.githubusercontent.com/${{ github.repository }}/${BRANCH_OR_REF}/${{ inputs.values_file }}"
 
-        # Validate values.yml URL
-        if ! curl --output /dev/null --silent --head --fail "${VALUES_URL}"; then
-          echo "Error: The constructed values.yml URL is invalid or inaccessible: ${VALUES_URL}"
-          exit 1
-        fi
-        echo "Validated values.yml URL: ${VALUES_URL}"
-
         # Process vars and send to GITHUB_ENV
         declare -A vars=(
           [s3_access_key]="${{ inputs.s3_access_key }}"
@@ -102,6 +95,16 @@ runs:
             exit 1
           fi
         done
+
+    - if: github.event.action != 'closed'
+      shell: bash
+      run: |
+        # Validate values.yml URL
+        if ! curl --output /dev/null --silent --head --fail "${VALUES_URL}"; then
+          echo "Error: The constructed values.yml URL is invalid or inaccessible: ${VALUES_URL}"
+          exit 1
+        fi
+        echo "Validated values.yml URL: ${VALUES_URL}"
 
     - uses: actions/checkout@v4
       if: github.event.action != 'closed'
