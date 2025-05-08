@@ -71,6 +71,11 @@ runs:
         RELEASE_NAME=pg-$(echo -n "${{github.event.repository.name}}" | md5sum | cut -c 1-8)
         CLUSTER_NAME=${RELEASE_NAME}-crunchy
 
+        if [ "${{ github.event.action }}" == "closed" ]; then
+          echo "PR close does not require a full set of vars."
+          exit 0
+        fi
+
         # Enable S3 backups if all required vars are set
         s3_vars=("${{ inputs.s3_access_key }}" "${{ inputs.s3_secret_key }}" "${{ inputs.s3_bucket }}" "${{ inputs.s3_endpoint }}")
         if [ "${#s3_vars[@]}" -eq 4 ]; then
@@ -95,8 +100,6 @@ runs:
         echo "Validated values.yml URL: ${VALUES_URL}"
 
         # Process vars and send to GITHUB_ENV
-        RELEASE_NAME=${RELEASE_NAME}
-        CLUSTER_NAME=${CLUSTER_NAME}
         for var in "S3_ENABLED" "RELEASE_NAME" "CLUSTER_NAME" "VALUES_URL"; do
           if [ -n "${!var}" ]; then
             echo "${var}=${!var}"
