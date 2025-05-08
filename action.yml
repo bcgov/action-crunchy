@@ -19,7 +19,7 @@ inputs:
   values_file:
     description: 'Path to the values.yml file to use for the deployment'
     required: true
-    validation: "^.+\.(yml|yaml)$"
+    validation: "^.+\\.(yml|yaml)$"
   enabled:
     description: 'Enable the deployment of the crunchy database, easy switch to turn it on/off'
     default: true
