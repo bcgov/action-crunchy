@@ -2,7 +2,7 @@
 
 # Catch errors and unset variables
 set -euo pipefail
-
+set -x
 # Remove S3_ENABLED and adjust logic to use S3 inputs if provided
 if [ "$#" -lt 4 ]; then
   echo "Usage: $0 <directory> <values_url> <app_name> <release_name> [s3_access_key] [s3_secret_key] [s3_bucket] [s3_endpoint]"
@@ -43,7 +43,7 @@ if [ -n "$S3_ACCESS_KEY" ] && [ -n "$S3_SECRET_KEY" ] && [ -n "$S3_BUCKET" ] && 
 fi
 
 # Execute the Helm command
-helm upgrade --install --wait "$RELEASE_NAME" --values ./values.yml ./$APP_NAME-5.5.1.tgz "$SET_STRINGS"
+helm upgrade --install --wait "$RELEASE_NAME" --values ./values.yml ./$APP_NAME-5.5.1.tgz $SET_STRINGS
 
 # Verify successful db deployment; wait retry 10 times with 60 seconds interval
 for i in {1..10}; do
