@@ -34,6 +34,11 @@ inputs:
     description: 'Git ref to use; e.g. branch, tag, sha'
     default: ''
     required: false
+  repository:
+    description: 'GitHub repository; e.g. org/repo'
+    default: bcgov/action-crunchy
+    required: false
+    validation: "^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$"
   oc_namespace:
     description: 'OpenShift namespace'
     required: true
@@ -111,7 +116,7 @@ runs:
         oc_namespace: "${{ inputs.oc_namespace }}"
         oc_token: "${{ inputs.oc_token }}"
         oc_server: "${{ inputs.oc_server }}"
-        repository: ${{ github.repository }}
+        repository: ${{ inputs.repository }}
         ref: ${{ inputs.ref }}
         triggers: "${{ inputs.triggers }}"
         commands: |
