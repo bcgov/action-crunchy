@@ -180,7 +180,7 @@ runs:
       shell: bash
       run: |
         # Add user to Crunchy DB
-        ./scripts/user_add.sh "${{ github.event.number }}" "${CLUSTER_NAME}"
+        ./scripts/user_change.sh add "${{ github.event.number }}" "${CLUSTER_NAME}"
 
     - uses: bcgov/action-oc-runner@v1.2.1
       if: github.event.action == 'closed'
@@ -190,4 +190,4 @@ runs:
         oc_server: "${{ inputs.oc_server }}"
         commands: |
           # Remove PR specific user from Crunchy DB
-          ./scripts/user_remove.sh "${{ github.event.number }}" "${CLUSTER_NAME}"
+          ./scripts/user_change.sh remove "${{ github.event.number }}" "${CLUSTER_NAME}"
