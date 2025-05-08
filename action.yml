@@ -71,6 +71,22 @@ runs:
         RELEASE_NAME=pg-$(echo -n "${{github.event.repository.name}}" | md5sum | cut -c 1-8)
         CLUSTER_NAME=${RELEASE_NAME}-crunchy
 
+        # Process vars and send to GITHUB_ENV
+        for var in RELEASE_NAME CLUSTER_NAME; do
+          if [ -n "${!var}" ]; then
+            echo "${var}=${!var}"
+            echo "${var}=${!var}" >> $GITHUB_ENV
+          else
+            echo "Warning: ${var} is not set."
+            exit 1
+          fi
+        done
+
+    - shell: bash
+      if: github.event.action != 'closed'
+      run: |
+        # Variables and Inputs (!= closed)
+
         # Enable S3 backups if all required vars are set
         s3_vars=("${{ inputs.s3_access_key }}" "${{ inputs.s3_secret_key }}" "${{ inputs.s3_bucket }}" "${{ inputs.s3_endpoint }}")
         if [ "${#s3_vars[@]}" -eq 4 ]; then
@@ -92,15 +108,9 @@ runs:
           echo "Error: The constructed values.yml URL is invalid or inaccessible: ${VALUES_URL}"
           exit 1
         fi
-        echo "Validated values.yml URL: ${VALUES_URL}"
 
         # Process vars and send to GITHUB_ENV
-        if [ "${{ github.event.action }}" != "closed" ]; then
-          vars=(S3_ENABLED RELEASE_NAME CLUSTER_NAME VALUES_URL)
-        else
-          vars=(RELEASE_NAME CLUSTER_NAME)
-        fi
-        for var in "${vars[@]}"; do
+        for var in S3_ENABLED VALUES_URL; do
           if [ -n "${!var}" ]; then
             echo "${var}=${!var}"
             echo "${var}=${!var}" >> $GITHUB_ENV
@@ -178,7 +188,6 @@ runs:
         oc_namespace: "${{ inputs.oc_namespace }}"
         oc_token: "${{ inputs.oc_token }}"
         oc_server: "${{ inputs.oc_server }}"
-        triggers: "${{ inputs.triggers }}"
         commands: |
           # Remove PR specific user from Crunchy DB
           ./scripts/user_remove.sh "${{ github.event.number }}" "${CLUSTER_NAME}"
