@@ -68,13 +68,8 @@ runs:
         # Variables and Inputs
 
         # Release and cluster name; based on a hash of the repository name
-        RELEASE_NAME=pg-$(echo -n "${{github.event.repository.name}}" | md5sum | cut -c 1-8) >> $GITHUB_ENV
-        CLUSTER_NAME=${RELEASE_NAME}-crunchy >> $GITHUB_ENV
-
-    - if: github.event.action != 'closed'
-      shell: bash
-      run: |
-        # Variables and Inputs (!= closed)
+        RELEASE_NAME=pg-$(echo -n "${{github.event.repository.name}}" | md5sum | cut -c 1-8)
+        CLUSTER_NAME=${RELEASE_NAME}-crunchy
 
         # Enable S3 backups if all required vars are set
         s3_vars=("${{ inputs.s3_access_key }}" "${{ inputs.s3_secret_key }}" "${{ inputs.s3_bucket }}" "${{ inputs.s3_endpoint }}")
