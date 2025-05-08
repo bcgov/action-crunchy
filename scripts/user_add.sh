@@ -1,27 +1,32 @@
 #!/bin/bash
+
+set -euo pipefail
 set -x
+
+# Inputs and variables
+PR_NO="${1:-0}"
+REPO="${2:-action-crunchy}"
+CLUSTER_NAME=pg-$(echo -n "${REPO}" | md5sum | cut -c 1-8)-crunchy
+
 # Add PR specific user to Crunchy DB
-NEW_USER='{"databases":["app-$1"],"name":"app-$1"}'
-CURRENT_USERS=$(oc get PostgresCluster/"$2" -o json | jq '.spec.users')
+echo "Adding PR specific user to Crunchy DB"
+NEW_USER='{"databases":["app-${PR_NO}"],"name":"app-${PR_NO}"}'
+CURRENT_USERS=$(oc get PostgresCluster/"${CLUSTER_NAME}" -o json | jq '.spec.users')
 echo "${CURRENT_USERS}"
 
-# Check if current_users already contains the new_user
-if echo "${CURRENT_USERS}" | jq -e ".[] | select(.name == \"app-$1\")" > /dev/null; then
+# check if current_users already contains the new_user
+if echo "${CURRENT_USERS}" | jq -e ".[] | select(.name == \"app-${PR_NO}\")" > /dev/null; then
   echo "User already exists"
   exit 0
 fi
 
 UPDATED_USERS=$(echo "${CURRENT_USERS}" | jq --argjson NEW_USER "${NEW_USER}" '. + [$NEW_USER]')
 PATCH_JSON=$(jq -n --argjson users "${UPDATED_USERS}" '{"spec": {"users": $users}}')
-oc patch PostgresCluster/"$2" --type=merge -p "${PATCH_JSON}"
-
-# Build the CLUSTER_NAME variable based on the repository name
-CLUSTER_NAME=pg-$(echo -n "$3" | md5sum | cut -c 1-8)-crunchy
-
-# Wait for the secret to be created
+oc patch PostgresCluster/"${CLUSTER_NAME}" --type=merge -p "${PATCH_JSON}"
+# wait for sometime as it takes time to create the user, query the secret and check if it is created, otherwise wait in a loop for 5 rounds
 SECRET_FOUND=false
 for i in {1..5}; do
-  if oc get secret "$2-pguser-app-$1" -o jsonpath='{.metadata.name}' > /dev/null 2>&1; then
+  if oc get secret "${CLUSTER_NAME}-pguser-app-${PR_NO}" -o jsonpath='{.metadata.name}' > /dev/null 2>&1; then
     echo "Secret created"
     SECRET_FOUND=true
     break
@@ -32,6 +37,6 @@ for i in {1..5}; do
 done
 
 if [ "$SECRET_FOUND" = false ]; then
-  echo "Error: Secret $2-pguser-app-$1 was not created after 5 attempts."
+  echo "Error: Secret ${CLUSTER_NAME}-pguser-app-${PR_NO} was not created after 5 attempts."
   exit 1
 fi
