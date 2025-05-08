@@ -50,9 +50,14 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - shell: bash
+    - if: github.event.action != 'closed'
+      shell: bash
       run: |
         # Variables and Inputs
+
+        # Release and cluster names; based on a hash of the repository name
+        RELEASE_NAME=pg-$(echo -n "${{github.event.repository.name}}" | md5sum | cut -c 1-8)
+        CLUSTER_NAME=${RELEASE_NAME}-crunchy
 
         # Enable S3 backups if all required vars are set
         s3_vars=("${{ inputs.s3_access_key }}" "${{ inputs.s3_secret_key }}" "${{ inputs.s3_bucket }}" "${{ inputs.s3_endpoint }}")
@@ -66,10 +71,6 @@ runs:
           echo "S3 configuration not set. Disabling S3 backups."
         fi
 
-        # Release and cluster names; based on a hash of the repository name
-        RELEASE_NAME=pg-$(echo -n "${{github.event.repository.name}}" | md5sum | cut -c 1-8)
-        CLUSTER_NAME=${RELEASE_NAME}-crunchy
-
         # Construct values.yml URL (ref_name = PR, ref_name = merge, default_branch = default)
         BRANCH_OR_REF="${{ github.head_ref || github.ref_name || github.event.repository.default_branch }}"
         VALUES_URL="https://raw.githubusercontent.com/${{ github.repository }}/${BRANCH_OR_REF}/${{ inputs.values_file }}"
@@ -82,23 +83,12 @@ runs:
         echo "Validated values.yml URL: ${VALUES_URL}"
 
         # Process vars and send to GITHUB_ENV
-        declare -A vars=(
-          [s3_access_key]="${{ inputs.s3_access_key }}"
-          [s3_secret_key]="${{ inputs.s3_secret_key }}"
-          [s3_bucket]="${{ inputs.s3_bucket }}"
-          [s3_endpoint]="${{ inputs.s3_endpoint }}"
-          [RELEASE_NAME]="$RELEASE_NAME"
-          [CLUSTER_NAME]="$CLUSTER_NAME"
-          [VALUES_URL]="$VALUES_URL"
-        )
-
-        for var_name in "${!vars[@]}"; do
-          var_value="${vars[$var_name]}"
-          if [ -n "$var_value" ]; then
-            echo "${var_name}=${var_value}"
-            echo "${var_name}=${var_value}" >> $GITHUB_ENV
+        for var in "S3_ENABLED" "RELEASE_NAME" "CLUSTER_NAME" "VALUES_URL"; do
+          if [ -n "${!var}" ]; then
+            echo "${var}=${!var}"
+            echo "${var}=${!var}" >> $GITHUB_ENV
           else
-            echo "Error: ${var_name} is not set."
+            echo "Warning: ${var} is not set."
             exit 1
           fi
         done
@@ -198,7 +188,7 @@ runs:
           exit 1
         fi
 
-    - if: github.event_name == 'pull_request' && github.event.action == 'closed'
+    - if: github.event.action == 'closed'
       uses: bcgov/action-oc-runner@v1.2.1
       with:
         oc_namespace: "${{ inputs.oc_namespace }}"
@@ -207,8 +197,13 @@ runs:
         triggers: "${{ inputs.triggers }}"
         commands: |
           # Remove PR specific user from Crunchy DB
-          # check if postgres-crunchy exists or else exit
+
+          # Cluster name; based on a hash of the repository name
+          CLUSTER_NAME=pg-$(echo -n "${{github.event.repository.name}}" | md5sum | cut -c 1-8)-crunchy
+
+          # Check if postgres-crunchy exists or else exit
           oc get PostgresCluster/"${CLUSTER_NAME}" || exit 0
+
           # Remove the user from the crunchy cluster yaml and apply the changes
           USER_TO_REMOVE='{"databases":["app-${{ github.event.number }}"],"name":"app-${{ github.event.number }}"}'
           
