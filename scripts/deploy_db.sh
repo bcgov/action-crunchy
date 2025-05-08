@@ -32,9 +32,8 @@ sed -i "s/^name:.*/name: $APP_NAME/" Chart.yaml
 # Package, update and deploy the chart
 helm package -u .
 
-# Append S3-specific options if S3 inputs are provided
+# Build Helm set strings; add non-S3 options first if needed
 SET_STRINGS=""
-
 if [ -n "$S3_ACCESS_KEY" ] && [ -n "$S3_SECRET_KEY" ] && [ -n "$S3_BUCKET" ] && [ -n "$S3_ENDPOINT" ]; then
   SET_STRINGS+=" --set crunchy.pgBackRest.s3.enabled=true \
     --set-string crunchy.pgBackRest.s3.accessKey=\"$S3_ACCESS_KEY\" \
@@ -44,7 +43,7 @@ if [ -n "$S3_ACCESS_KEY" ] && [ -n "$S3_SECRET_KEY" ] && [ -n "$S3_BUCKET" ] && 
 fi
 
 # Execute the Helm command
-helm upgrade --install --wait ${SET_STRINGS} \"$RELEASE_NAME\" --values ./values.yml ./$APP_NAME-5.5.1.tgz
+helm upgrade --install --wait "$RELEASE_NAME" --values ./values.yml ./$APP_NAME-5.5.1.tgz "$SET_STRINGS"
 
 # Verify successful db deployment; wait retry 10 times with 60 seconds interval
 for i in {1..10}; do
