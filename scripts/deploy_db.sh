@@ -27,8 +27,7 @@ curl -o ./values.yml "$VALUES_URL"
 echo "Downloaded values.yml (current directory: charts/crunchy)"
 
 # Set Helm app name
-# TODO! Uncomment when done!
-# sed -i "s/^name:.*/name: $APP_NAME/" Chart.yaml
+sed -i "s/^name:.*/name: $APP_NAME/" Chart.yaml
 
 # Package, update and deploy the chart
 helm package -u .
@@ -50,7 +49,7 @@ helm upgrade --install --wait "$RELEASE_NAME" --values ./values.yml ./$APP_NAME-
 for i in {1..10}; do
   # Check if the 'db' instance has at least 1 ready replica
   if oc get PostgresCluster/"$RELEASE_NAME"-crunchy -o json | jq -e '.status.instances[] | select(.name=="db") | .readyReplicas > 0' > /dev/null 2>&1; then
-    echo "Crunchy DB instance 'db' is ready "
+    echo "Crunchy DB instance 'db' is ready."
     READY=true
     exit 0
   else
