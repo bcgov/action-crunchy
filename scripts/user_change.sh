@@ -5,12 +5,13 @@ set -euo pipefail
 
 # Input validation
 if [ "$#" -lt 3 ]; then
-    echo "Usage: $0 <add|remove> <github_pr_no> <cluster>"
+    echo "Add, Remove or Check on PR-based users and databases."
+    echo "Usage: $0 <add|remove|check> <github_pr_no> <cluster>"
     exit 1
 fi
 
 # Inputs and variables
-ACTION="${1}"
+COMMAND="${1}"
 PR_NO="${2}"
 CLUSTER="${3}"
 
@@ -27,7 +28,7 @@ TARGET_USER="{\"databases\":[\"app-${PR_NO}\"], \"name\":\"app-${PR_NO}\"}"
 CURRENT_USERS=$(oc get PostgresCluster/"${CLUSTER}" -o json | jq '.spec.users')
 echo "${CURRENT_USERS}"
 
-# Function to check if a user exists in the current users list
+# Function to check if a user already exists
 user_exists() {
     local user_name="$1"
     local current_users="$2"
@@ -59,13 +60,22 @@ wait_for_secret() {
     return 1
 }
 
+# Check if the user already exists
 USER_EXISTS=$(user_exists "app-${PR_NO}" "${CURRENT_USERS}")
 
-# Perform add or remove
-if [ "$ACTION" == "add" ]; then
-    # Add PR specific user to Crunchy DB
-    echo "Adding PR specific user to Crunchy DB"
+# Echo intent
+echo -e "Cluster: ${CLUSTER}"
+echo -e "PR User: app-${PR_NO}"
+echo -e "Command: ${COMMAND}\n"
 
+# Perform list, add or remove
+if [ "$COMMAND" == "check" ]; then
+    if [ "$USER_EXISTS" -eq 1 ]; then
+      echo "User ${PR_NO} already exists."
+    else
+      echo "User ${PR_NO} does not exist."
+    fi
+elif [ "$COMMAND" == "add" ]; then
     if [ "$USER_EXISTS" -eq 1 ]; then
       echo "User already exists. Exiting."
       exit 0
@@ -77,16 +87,12 @@ if [ "$ACTION" == "add" ]; then
     # Wait for the secret to be created
     wait_for_secret "${CLUSTER}-pguser-app-${PR_NO}" || exit 1
 
-elif [ "$ACTION" == "remove" ]; then
-    # Remove the user from the crunchy cluster yaml and apply the changes
-    echo "Removing PR specific user from Crunchy DB"
-
+elif [ "$COMMAND" == "remove" ]; then
     if [ "$USER_EXISTS" -eq 0 ]; then
       echo "User does not exist to remove. Exiting."
       exit 0
     fi
 
-    # Remove the user from the list
     UPDATED_USERS=$(echo "${CURRENT_USERS}" | jq --argjson user "${TARGET_USER}" 'map(select(. != $user))')
     patch_postgres_cluster "${CLUSTER}" "${UPDATED_USERS}"
 
@@ -115,6 +121,6 @@ elif [ "$ACTION" == "remove" ]; then
         exit 1
     fi
 else
-    echo "Invalid action: $ACTION. Use 'add' or 'remove'."
+    echo "Invalid command: $COMMAND. Use 'add', 'remove' or 'check'."
     exit 1
 fi
