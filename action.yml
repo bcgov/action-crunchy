@@ -63,14 +63,18 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - if: github.event.action != 'closed'
-      shell: bash
+    - shell: bash
       run: |
         # Variables and Inputs
 
-        # Release and cluster names; based on a hash of the repository name
+        # Release and cluster name; based on a hash of the repository name
         RELEASE_NAME=pg-$(echo -n "${{github.event.repository.name}}" | md5sum | cut -c 1-8)
         CLUSTER_NAME=${RELEASE_NAME}-crunchy
+
+    - if: github.event.action != 'closed'
+      shell: bash
+      run: |
+        # Variables and Inputs (!= closed)
 
         # Enable S3 backups if all required vars are set
         s3_vars=("${{ inputs.s3_access_key }}" "${{ inputs.s3_secret_key }}" "${{ inputs.s3_bucket }}" "${{ inputs.s3_endpoint }}")
@@ -166,7 +170,7 @@ runs:
       shell: bash
       run: |
         # Add user to Crunchy DB
-        ./scripts/user_add.sh "${{ github.event.number }}" "${{ github.repository }}"
+        ./scripts/user_add.sh "${{ github.event.number }}" "${CLUSTER_NAME}"
 
     - if: github.event.action == 'closed'
       uses: bcgov/action-oc-runner@v1.2.1
@@ -177,9 +181,6 @@ runs:
         triggers: "${{ inputs.triggers }}"
         commands: |
           # Remove PR specific user from Crunchy DB
-
-          # Cluster name; based on a hash of the repository name
-          CLUSTER_NAME=pg-$(echo -n "${{github.event.repository.name}}" | md5sum | cut -c 1-8)-crunchy
 
           # Check if postgres-crunchy exists or else exit
           oc get PostgresCluster/"${CLUSTER_NAME}" || exit 0

@@ -12,8 +12,7 @@ fi
 
 # Inputs and variables
 PR_NO="${1}"
-REPO="${2:-action-crunchy}"
-CLUSTER_NAME=pg-$(echo -n "${REPO}" | md5sum | cut -c 1-8)-crunchy
+CLUSTER_NAME="${2}"
 
 # Add PR specific user to Crunchy DB
 echo "Adding PR specific user to Crunchy DB"
