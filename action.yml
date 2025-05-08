@@ -106,9 +106,6 @@ runs:
           fi
         done
 
-    - uses: actions/checkout@v4
-      if: github.event.action != 'closed'
-
     - uses: bcgov/action-oc-runner@v1.2.1
       id: deploy
       if: github.event.action != 'closed' # avoid running on PR close event, which unnecessarily patches the cluster.
