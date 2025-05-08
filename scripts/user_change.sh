@@ -107,19 +107,19 @@ elif [ "$COMMAND" == "remove" ]; then
         exit 1
     fi
     
-    # Drop the database
-    oc exec -it "${CRUNCHY_PG_PRIMARY_POD_NAME}" -- bash -c "psql -U postgres -d postgres -c \"DROP DATABASE IF EXISTS \\\"app-${PR_NO}\\\";\""
-    if [ $? -ne 0 ]; then
-        echo "Failed to drop database app-${PR_NO}" >&2
-        exit 1
-    fi
+    # # Drop the database
+    # oc exec -it "${CRUNCHY_PG_PRIMARY_POD_NAME}" -- bash -c "psql -U postgres -d postgres -c \"DROP DATABASE IF EXISTS \\\"app-${PR_NO}\\\";\""
+    # if [ $? -ne 0 ]; then
+    #     echo "Failed to drop database app-${PR_NO}" >&2
+    #     exit 1
+    # fi
     
-    # Drop the role
-    oc exec -it "${CRUNCHY_PG_PRIMARY_POD_NAME}" -- bash -c "psql -U postgres -d postgres -c \"DROP ROLE IF EXISTS \\\"app-${PR_NO}\\\";\""
-    if [ $? -ne 0 ]; then
-        echo "Failed to drop role app-${PR_NO}" >&2
-        exit 1
-    fi
+    # # Drop the role
+    # oc exec -it "${CRUNCHY_PG_PRIMARY_POD_NAME}" -- bash -c "psql -U postgres -d postgres -c \"DROP ROLE IF EXISTS \\\"app-${PR_NO}\\\";\""
+    # if [ $? -ne 0 ]; then
+    #     echo "Failed to drop role app-${PR_NO}" >&2
+    #     exit 1
+    # fi
 else
     echo "Invalid command: $COMMAND. Use 'add', 'remove' or 'check'."
     exit 1
