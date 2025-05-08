@@ -5,18 +5,18 @@ set -euo pipefail
 
 # Input validation
 if [ "$#" -lt 3 ]; then
-    echo "Usage: $0 <add|remove> <github_pr_no> <cluster_name>"
+    echo "Usage: $0 <add|remove> <github_pr_no> <cluster>"
     exit 1
 fi
 
 # Inputs and variables
 ACTION="${1}"
 PR_NO="${2}"
-CLUSTER_NAME="${3}"
+CLUSTER="${3}"
 
 # Check if postgres-crunchy exists or else exit
-if ! oc get PostgresCluster/"${CLUSTER_NAME}"; then
-    echo "Cluster ${CLUSTER_NAME} does not exist. Exiting."
+if ! oc get PostgresCluster/"${CLUSTER}"; then
+    echo "Cluster ${CLUSTER} does not exist. Exiting."
     exit 0
 fi
 
@@ -24,7 +24,7 @@ fi
 TARGET_USER="{\"databases\":[\"app-${PR_NO}\"], \"name\":\"app-${PR_NO}\"}"
 
 # Check if the user already exists
-CURRENT_USERS=$(oc get PostgresCluster/"${CLUSTER_NAME}" -o json | jq '.spec.users')
+CURRENT_USERS=$(oc get PostgresCluster/"${CLUSTER}" -o json | jq '.spec.users')
 echo "${CURRENT_USERS}"
 
 # Function to check if a user exists in the current users list
@@ -36,11 +36,11 @@ user_exists() {
 
 # Function to patch PostgresCluster with updated users
 patch_postgres_cluster() {
-    local cluster_name="$1"
+    local cluster="$1"
     local updated_users="$2"
     local patch_json
     patch_json=$(jq -n --argjson users "${updated_users}" '{"spec": {"users": $users}}')
-    oc patch PostgresCluster/"${cluster_name}" --type=merge -p "${patch_json}"
+    oc patch PostgresCluster/"${CLUSTER}" --type=merge -p "${patch_json}"
 }
 
 # Function to wait for a secret to be created
@@ -72,10 +72,10 @@ if [ "$ACTION" == "add" ]; then
     fi
 
     UPDATED_USERS=$(echo "${CURRENT_USERS}" | jq --argjson TARGET_USER "${TARGET_USER}" '. + [$TARGET_USER]')
-    patch_postgres_cluster "${CLUSTER_NAME}" "${UPDATED_USERS}"
+    patch_postgres_cluster "${CLUSTER}" "${UPDATED_USERS}"
 
     # Wait for the secret to be created
-    wait_for_secret "${CLUSTER_NAME}-pguser-app-${PR_NO}" || exit 1
+    wait_for_secret "${CLUSTER}-pguser-app-${PR_NO}" || exit 1
 
 elif [ "$ACTION" == "remove" ]; then
     # Remove the user from the crunchy cluster yaml and apply the changes
@@ -88,10 +88,10 @@ elif [ "$ACTION" == "remove" ]; then
 
     # Remove the user from the list
     UPDATED_USERS=$(echo "${CURRENT_USERS}" | jq --argjson user "${TARGET_USER}" 'map(select(. != $user))')
-    patch_postgres_cluster "${CLUSTER_NAME}" "${UPDATED_USERS}"
+    patch_postgres_cluster "${CLUSTER}" "${UPDATED_USERS}"
 
     # Get primary crunchy pod and remove the role and database
-    CRUNCHY_PG_PRIMARY_POD_NAME=$(oc get pods -l postgres-operator.crunchydata.com/cluster="${CLUSTER_NAME}",postgres-operator.crunchydata.com/role=master -o json | jq -r '.items[0].metadata.name')
+    CRUNCHY_PG_PRIMARY_POD_NAME=$(oc get pods -l postgres-operator.crunchydata.com/cluster="${CLUSTER}",postgres-operator.crunchydata.com/role=master -o json | jq -r '.items[0].metadata.name')
     echo "${CRUNCHY_PG_PRIMARY_POD_NAME}"
 
     # Terminate all connections to the database and drop the database and role
