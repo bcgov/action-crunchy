@@ -5,7 +5,7 @@ set -x
 
 # Input validation
 if [ -z "${1:-}" ]; then
-    echo "Create a PR-appropriate user in the Crunchy DB"s
+    echo "Create a PR-appropriate user in the Crunchy DB"
     echo "Usage: $0 <github_pr_no> <repo_name>"
     exit 1
 fi
@@ -13,6 +13,12 @@ fi
 # Inputs and variables
 PR_NO="${1}"
 CLUSTER_NAME="${2}"
+
+# Check if postgres-crunchy exists or else exit
+if ! oc get PostgresCluster/"${CLUSTER_NAME}"; then
+    echo "Cluster ${CLUSTER_NAME} does not exist. Exiting."
+    exit 0
+fi
 
 # Add PR specific user to Crunchy DB
 echo "Adding PR specific user to Crunchy DB"
