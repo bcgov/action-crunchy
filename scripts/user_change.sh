@@ -4,7 +4,7 @@ set -euo pipefail
 set -x
 
 # Input validation
-if [ -z "${1:-}" ] || [ -z "${2:-}" ] || [ -z "${3:-}" ]; then
+if [ "$#" -lt 3 ]; then
     echo "Usage: $0 <add|remove> <github_pr_no> <repo_name>"
     exit 1
 fi
@@ -20,20 +20,25 @@ if ! oc get PostgresCluster/"${CLUSTER_NAME}"; then
     exit 0
 fi
 
+# Set target database and user
+TARGET_USER="{\"databases\":[\"app-${PR_NO}\"], \"name\":\"app-${PR_NO}\"}"
+
+# Check if the user already exists
+CURRENT_USERS=$(oc get PostgresCluster/"${CLUSTER_NAME}" -o json | jq '.spec.users')
+echo "${CURRENT_USERS}"
+USER_EXISTS=$(echo "${CURRENT_USERS}" | jq -e ".[] | select(.name == \"app-${PR_NO}\")" > /dev/null && echo true || echo false)
+
+# Perform add or remove
 if [ "$ACTION" == "add" ]; then
     # Add PR specific user to Crunchy DB
     echo "Adding PR specific user to Crunchy DB"
-    NEW_USER="{\"databases\":[\"app-${PR_NO}\"], \"name\":\"app-${PR_NO}\"}"
-    CURRENT_USERS=$(oc get PostgresCluster/"${CLUSTER_NAME}" -o json | jq '.spec.users')
-    echo "${CURRENT_USERS}"
 
-    # Check if current_users already contains the new_user
-    if echo "${CURRENT_USERS}" | jq -e ".[] | select(.name == \"app-${PR_NO}\")" > /dev/null; then
-      echo "User already exists"
+    if ${USER_EXISTS}; then
+      echo "User already exists. Exiting."
       exit 0
     fi
 
-    UPDATED_USERS=$(echo "${CURRENT_USERS}" | jq --argjson NEW_USER "${NEW_USER}" '. + [$NEW_USER]')
+    UPDATED_USERS=$(echo "${CURRENT_USERS}" | jq --argjson TARGET_USER "${TARGET_USER}" '. + [$TARGET_USER]')
     PATCH_JSON=$(jq -n --argjson users "${UPDATED_USERS}" '{"spec": {"users": $users}}')
     oc patch PostgresCluster/"${CLUSTER_NAME}" --type=merge -p "${PATCH_JSON}"
 
@@ -58,14 +63,14 @@ if [ "$ACTION" == "add" ]; then
 elif [ "$ACTION" == "remove" ]; then
     # Remove the user from the crunchy cluster yaml and apply the changes
     echo "Removing PR specific user from Crunchy DB"
-    USER_TO_REMOVE="{\"databases\":[\"app-${PR_NO}\"], \"name\":\"app-${PR_NO}\"}"
 
-    echo 'Getting current users from Crunchy DB'
-    CURRENT_USERS=$(oc get PostgresCluster/"${CLUSTER_NAME}" -o json | jq '.spec.users')
-    echo "${CURRENT_USERS}"
+    if ! ${USER_EXISTS}; then
+      echo "User does not exist to remove. Exiting."
+      exit 0
+    fi
 
     # Remove the user from the list
-    UPDATED_USERS=$(echo "${CURRENT_USERS}" | jq --argjson user "${USER_TO_REMOVE}" 'map(select(. != $user))')
+    UPDATED_USERS=$(echo "${CURRENT_USERS}" | jq --argjson user "${TARGET_USER}" 'map(select(. != $user))')
     PATCH_JSON=$(jq -n --argjson users "${UPDATED_USERS}" '{"spec": {"users": $users}}')
     oc patch PostgresCluster/"${CLUSTER_NAME}" --type=merge -p "${PATCH_JSON}"
 
