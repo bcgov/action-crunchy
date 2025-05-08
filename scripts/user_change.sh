@@ -94,8 +94,26 @@ elif [ "$ACTION" == "remove" ]; then
     CRUNCHY_PG_PRIMARY_POD_NAME=$(oc get pods -l postgres-operator.crunchydata.com/cluster="${CLUSTER}",postgres-operator.crunchydata.com/role=master -o json | jq -r '.items[0].metadata.name')
     echo "${CRUNCHY_PG_PRIMARY_POD_NAME}"
 
-    # Check if database exists, terminate connections, and drop database and role in a single command
-    oc exec -it "${CRUNCHY_PG_PRIMARY_POD_NAME}" -- bash -c "psql -U postgres -d postgres -c \"SELECT pg_terminate_backend(pg_stat_activity.pid) FROM pg_stat_activity WHERE pg_stat_activity.datname = 'app-${PR_NO}' AND pid <> pg_backend_pid();\" && \psql -U postgres -d postgres -c \"DROP DATABASE IF EXISTS \\\"app-${PR_NO}\\\";\" && \psql -U postgres -d postgres -c \"DROP ROLE IF EXISTS \\\"app-${PR_NO}\\\";\""
+    # Terminate connections to the database
+    oc exec -it "${CRUNCHY_PG_PRIMARY_POD_NAME}" -- bash -c "psql -U postgres -d postgres -c \"SELECT pg_terminate_backend(pg_stat_activity.pid) FROM pg_stat_activity WHERE pg_stat_activity.datname = 'app-${PR_NO}' AND pid <> pg_backend_pid();\""
+    if [ $? -ne 0 ]; then
+        echo "Failed to terminate connections for database app-${PR_NO}" >&2
+        exit 1
+    fi
+    
+    # Drop the database
+    oc exec -it "${CRUNCHY_PG_PRIMARY_POD_NAME}" -- bash -c "psql -U postgres -d postgres -c \"DROP DATABASE IF EXISTS \\\"app-${PR_NO}\\\";\""
+    if [ $? -ne 0 ]; then
+        echo "Failed to drop database app-${PR_NO}" >&2
+        exit 1
+    fi
+    
+    # Drop the role
+    oc exec -it "${CRUNCHY_PG_PRIMARY_POD_NAME}" -- bash -c "psql -U postgres -d postgres -c \"DROP ROLE IF EXISTS \\\"app-${PR_NO}\\\";\""
+    if [ $? -ne 0 ]; then
+        echo "Failed to drop role app-${PR_NO}" >&2
+        exit 1
+    fi
 else
     echo "Invalid action: $ACTION. Use 'add' or 'remove'."
     exit 1
