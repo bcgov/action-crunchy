@@ -163,40 +163,7 @@ runs:
           fi
 
     - if: steps.deploy.outputs.triggered == 'true'
-      shell: bash
-      run: |
-        # Add PR specific user to Crunchy DB
-        echo "Adding PR specific user to Crunchy DB"
-        NEW_USER='{"databases":["app-${{ github.event.number }}"],"name":"app-${{ github.event.number }}"}'
-        CURRENT_USERS=$(oc get PostgresCluster/"${CLUSTER_NAME}" -o json | jq '.spec.users')
-        echo "${CURRENT_USERS}"
-
-        # check if current_users already contains the new_user
-        if echo "${CURRENT_USERS}" | jq -e ".[] | select(.name == \"app-${{ github.event.number }}\")" > /dev/null; then
-          echo "User already exists"
-          exit 0
-        fi
-
-        UPDATED_USERS=$(echo "${CURRENT_USERS}" | jq --argjson NEW_USER "${NEW_USER}" '. + [$NEW_USER]')
-        PATCH_JSON=$(jq -n --argjson users "${UPDATED_USERS}" '{"spec": {"users": $users}}')
-        oc patch PostgresCluster/"${CLUSTER_NAME}" --type=merge -p "${PATCH_JSON}"
-        # wait for sometime as it takes time to create the user, query the secret and check if it is created, otherwise wait in a loop for 5 rounds
-        SECRET_FOUND=false
-        for i in {1..5}; do
-          if oc get secret "${CLUSTER_NAME}-pguser-app-${{ github.event.number }}" -o jsonpath='{.metadata.name}' > /dev/null 2>&1; then
-            echo "Secret created"
-            SECRET_FOUND=true
-            break
-          else
-            echo "Attempt $i: Secret not created, waiting for 60 seconds"
-            sleep 60
-          fi
-        done
-
-        if [ "$SECRET_FOUND" = false ]; then
-          echo "Error: Secret ${CLUSTER_NAME}-pguser-app-${{ github.event.number }} was not created after 5 attempts."
-          exit 1
-        fi
+      run: ./scripts/user_add.sh "${{ github.event.number }}" "${{ github.repository }}"
 
     - if: github.event.action == 'closed'
       uses: bcgov/action-oc-runner@v1.2.1
