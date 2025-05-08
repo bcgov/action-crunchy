@@ -131,8 +131,15 @@ runs:
         ref: ${{ inputs.ref }}
         triggers: "${{ inputs.triggers }}"
         commands: |
-          # Deploy Database
-          ./scripts/deploy_db.sh "${{ inputs.directory }}" "${VALUES_URL}" "${{ github.event.repository.name }}" "$s3_enabled" "${{ inputs.s3_access_key }}" "${{ inputs.s3_secret_key }}" "${{ inputs.s3_bucket }}" "${{ inputs.s3_endpoint }}" "${RELEASE_NAME}"
+          # Check if S3 inputs are provided and construct the deploy_db.sh command accordingly
+          DEPLOY_COMMAND="./scripts/deploy_db.sh '${{ inputs.directory }}' '${VALUES_URL}' '${{ github.event.repository.name }}' '${RELEASE_NAME}'"
+
+          if [ -n "${{ inputs.s3_access_key }}" ] && [ -n "${{ inputs.s3_secret_key }}" ] && [ -n "${{ inputs.s3_bucket }}" ] && [ -n "${{ inputs.s3_endpoint }}" ]; then
+            DEPLOY_COMMAND+=" '${{ inputs.s3_access_key }}' '${{ inputs.s3_secret_key }}' '${{ inputs.s3_bucket }}' '${{ inputs.s3_endpoint }}'"
+          fi
+
+          # Execute the deploy command
+          eval "$DEPLOY_COMMAND"
 
     - if: steps.deploy.outputs.triggered == 'true' && github.event_name == 'pull_request'
       shell: bash
