@@ -146,7 +146,7 @@ runs:
       shell: bash
       run: |
         # Add user to Crunchy DB
-        ./scripts/user_change.sh add "${PARAMS}"
+        ./scripts/user_change.sh add "${{ github.event.number }}" "${CLUSTER_NAME}"
 
     - uses: bcgov/action-oc-runner@v1.2.1
       if: github.event.action == 'closed'
