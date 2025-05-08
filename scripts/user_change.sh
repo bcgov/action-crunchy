@@ -46,16 +46,16 @@ patch_postgres_cluster() {
 # Function to wait for a secret to be created
 wait_for_secret() {
     local secret_name="$1"
-    for i in {1..5}; do
+    for i in {1..10}; do
         if oc get secret "${secret_name}" -o jsonpath='{.metadata.name}' > /dev/null 2>&1; then
             echo "Secret created"
             return 0
         else
-            echo "Attempt $i: Secret not created, waiting for 60 seconds"
+            echo "Attempt $i: Secret not created, waiting for 30 seconds"
             sleep 60
         fi
     done
-    echo "Error: Secret ${secret_name} was not created after 5 attempts."
+    echo "Error: Secret ${secret_name} was not created after 10 attempts."
     return 1
 }
 
