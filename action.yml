@@ -6,34 +6,47 @@ inputs:
     description: 'Crunchy Chart directory'
     default: 'charts/crunchy'
     required: false
+    validation: "^.+$"
   oc_server:
     description: 'OpenShift server'
     default: 'https://api.silver.devops.gov.bc.ca:6443'
     required: false
+    validation: "^https?://.+:6443$"
   environment:
     description: 'Environment name; omit for PRs'
     required: false
+    validation: "^.+$"
   values_file:
     description: 'Path to the values.yml file to use for the deployment'
     required: true
+    validation: "^.+\\.(yml|yaml)$"
   enabled:
     description: 'Enable the deployment of the crunchy database, easy switch to turn it on/off'
-    default: 'true'
+    default: true
     required: false
+    type: boolean
   triggers:
-    description: 'Paths used to trigger a deployment; e.g. (./backend/ ./frontend/)'
+    description: 'Paths used to trigger a deployment; e.g. (./backend/ ./frontend/).'
     required: false
+    validation: "^(.+)$"
   ref:
     # This should be an empty string by default, but can be set to a specific branch/tag/sha
     description: 'Git ref to use; e.g. branch, tag, sha'
     default: ''
     required: false
+  repository:
+    description: 'GitHub repository; e.g. org/repo'
+    default: bcgov/action-crunchy
+    required: false
+    validation: "^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$"
   oc_namespace:
     description: 'OpenShift namespace'
     required: true
+    validation: "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$"
   oc_token:
     description: 'OpenShift token'
     required: true
+    validation: "^[A-Za-z0-9-_]+$"
   s3_access_key:
     description: 'S3 access key'
     required: false
@@ -93,9 +106,6 @@ runs:
           fi
         done
 
-    - uses: actions/checkout@v4
-      if: github.event.action != 'closed'
-
     - uses: bcgov/action-oc-runner@v1.2.1
       id: deploy
       if: github.event.action != 'closed' # avoid running on PR close event, which unnecessarily patches the cluster.
@@ -103,7 +113,7 @@ runs:
         oc_namespace: "${{ inputs.oc_namespace }}"
         oc_token: "${{ inputs.oc_token }}"
         oc_server: "${{ inputs.oc_server }}"
-        repository: ${{ github.repository }}
+        repository: ${{ inputs.repository }}
         ref: ${{ inputs.ref }}
         triggers: "${{ inputs.triggers }}"
         commands: |
