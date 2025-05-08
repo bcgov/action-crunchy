@@ -27,7 +27,8 @@ curl -o ./values.yml "$VALUES_URL"
 echo "Downloaded values.yml (current directory: charts/crunchy)"
 
 # Set Helm app name
-sed -i "s/^name:.*/name: $APP_NAME/" Chart.yaml
+# TODO! Uncomment when done!
+# sed -i "s/^name:.*/name: $APP_NAME/" Chart.yaml
 
 # Package, update and deploy the chart
 helm package -u .
@@ -51,15 +52,13 @@ for i in {1..10}; do
   if oc get PostgresCluster/"$RELEASE_NAME"-crunchy -o json | jq -e '.status.instances[] | select(.name=="db") | .readyReplicas > 0' > /dev/null 2>&1; then
     echo "Crunchy DB instance 'db' is ready "
     READY=true
-    break
+    exit 0
   else
     echo "Attempt $i: Crunchy DB is not ready, waiting for 60 seconds"
     sleep 60
   fi
 done
 
-if [ "$READY" != true ]; then
-  echo "Crunchy DB did not become ready after 10 attempts."
-  exit 1
-fi
-
+# Landing here means there's a problem
+echo "Crunchy DB did not become ready after 10 attempts."
+exit 1
