@@ -71,6 +71,10 @@ runs:
           echo "S3 configuration not set. Disabling S3 backups."
         fi
 
+        # Construct values.yml URL (ref_name = PR, ref_name = merge, default_branch = default)
+        BRANCH_OR_REF="${{ github.head_ref || github.ref_name || github.event.repository.default_branch }}"
+        VALUES_URL="https://raw.githubusercontent.com/${{ github.repository }}/${BRANCH_OR_REF}/${{ inputs.values_file }}"
+
         # Validate values.yml URL
         if ! curl --output /dev/null --silent --head --fail "${VALUES_URL}"; then
           echo "Error: The constructed values.yml URL is invalid or inaccessible: ${VALUES_URL}"
