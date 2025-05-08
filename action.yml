@@ -68,8 +68,8 @@ runs:
         # Variables and Inputs
 
         # Release and cluster name; based on a hash of the repository name
-        RELEASE_NAME=pg-$(echo -n "${{github.event.repository.name}}" | md5sum | cut -c 1-8)
-        CLUSTER_NAME=${RELEASE_NAME}-crunchy
+        RELEASE_NAME=pg-$(echo -n "${{github.event.repository.name}}" | md5sum | cut -c 1-8) >> $GITHUB_ENV
+        CLUSTER_NAME=${RELEASE_NAME}-crunchy >> $GITHUB_ENV
 
     - if: github.event.action != 'closed'
       shell: bash
