@@ -140,7 +140,6 @@ runs:
 
           # Execute the deploy command
           echo ./scripts/deploy_db.sh "$PARAMS"
-          exit 1
           ./scripts/deploy_db.sh "$PARAMS"
 
     - if: steps.deploy.outputs.triggered == 'true' && github.event_name == 'pull_request'
