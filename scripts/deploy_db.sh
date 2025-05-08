@@ -20,7 +20,7 @@ S3_ENDPOINT="${8:-}"
 
 # Deploy Database
 echo 'Deploying crunchy helm chart'
-cd "$DIRECTORY"
+cd $DIRECTORY
 
 # Download values.yml file
 curl -o ./values.yml "$VALUES_URL"
