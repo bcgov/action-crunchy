@@ -28,7 +28,7 @@ inputs:
   triggers:
     description: 'Paths used to trigger a deployment; e.g. (./backend/ ./frontend/).'
     required: false
-    validation: "^\(.+\)$"
+    validation: "^(.+)$"
   ref:
     # This should be an empty string by default, but can be set to a specific branch/tag/sha
     description: 'Git ref to use; e.g. branch, tag, sha'
