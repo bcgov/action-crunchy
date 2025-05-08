@@ -162,9 +162,11 @@ runs:
             exit 1
           fi
 
-    - if: steps.deploy.outputs.triggered == 'true'
+    - if: steps.deploy.outputs.triggered == 'true' && github.event_name == 'pull_request'
       shell: bash
-      run: ./scripts/user_add.sh "${{ github.event.number }}" "${{ github.repository }}"
+      run: |
+        # Add user to Crunchy DB
+        ./scripts/user_add.sh "${{ github.event.number }}" "${{ github.repository }}"
 
     - if: github.event.action == 'closed'
       uses: bcgov/action-oc-runner@v1.2.1
