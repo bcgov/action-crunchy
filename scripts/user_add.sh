@@ -17,7 +17,7 @@ CLUSTER_NAME=pg-$(echo -n "${REPO}" | md5sum | cut -c 1-8)-crunchy
 
 # Add PR specific user to Crunchy DB
 echo "Adding PR specific user to Crunchy DB"
-NEW_USER='{"databases":["app-${PR_NO}"],"name":"app-${PR_NO}"}'
+NEW_USER="{\"databases\":[\"app-${PR_NO}\"], \"name\":\"app-${PR_NO}\"}"
 CURRENT_USERS=$(oc get PostgresCluster/"${CLUSTER_NAME}" -o json | jq '.spec.users')
 echo "${CURRENT_USERS}"
 
