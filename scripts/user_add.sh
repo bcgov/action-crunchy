@@ -1,5 +1,5 @@
 #!/bin/bash
-
+set -x
 # Add PR specific user to Crunchy DB
 NEW_USER='{"databases":["app-$1"],"name":"app-$1"}'
 CURRENT_USERS=$(oc get PostgresCluster/"$2" -o json | jq '.spec.users')
