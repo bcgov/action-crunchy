@@ -163,6 +163,7 @@ runs:
           fi
 
     - if: steps.deploy.outputs.triggered == 'true'
+      shell: bash
       run: ./scripts/user_add.sh "${{ github.event.number }}" "${{ github.repository }}"
 
     - if: github.event.action == 'closed'
