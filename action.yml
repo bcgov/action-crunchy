@@ -76,23 +76,19 @@ runs:
 
         # Process vars and send to GITHUB_ENV
         declare -A vars=(
-          [s3_access_key]="${{ inputs.s3_access_key }}"
-          [s3_secret_key]="${{ inputs.s3_secret_key }}"
-          [s3_bucket]="${{ inputs.s3_bucket }}"
-          [s3_endpoint]="${{ inputs.s3_endpoint }}"
+          [S3_ENABLED]="$S3_ENABLED"
           [RELEASE_NAME]="$RELEASE_NAME"
           [CLUSTER_NAME]="$CLUSTER_NAME"
           [VALUES_URL]="$VALUES_URL"
         )
 
-        for var_name in "${!vars[@]}"; do
-          var_value="${vars[$var_name]}"
-          if [ -n "$var_value" ]; then
-            echo "${var_name}=${var_value}"
-            echo "${var_name}=${var_value}" >> $GITHUB_ENV
-          else
-            echo "Error: ${var_name} is not set."
+        for var in "(RELEASE_NAME CLUSTER_NAME VALUES_URL)"; do
+          if [ -n "${var}" ]; then
+            echo "Error: ${var} is not set."
             exit 1
+          else
+            echo "${var}=${${var}}"
+            echo "${var}=${${var}}" >> $GITHUB_ENV
           fi
         done
 
