@@ -59,6 +59,11 @@ inputs:
   s3_endpoint:
     description: 'S3 endpoint'
     required: false
+  force_cleanup:
+    description: 'Force cleanup of the database'
+    default: false
+    required: false
+    type: boolean
 
 runs:
   using: "composite"
@@ -149,7 +154,7 @@ runs:
         ./scripts/user_change.sh add "${{ github.event.number }}" "${CLUSTER_NAME}"
 
     - uses: bcgov/action-oc-runner@v1.2.1
-      if: github.event.action == 'closed'
+      if: github.event.action == 'closed' || inputs.force_cleanup == 'true'
       with:
         oc_namespace: "${{ inputs.oc_namespace }}"
         oc_token: "${{ inputs.oc_token }}"
