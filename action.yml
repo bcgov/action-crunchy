@@ -63,14 +63,18 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - if: github.event.action != 'closed'
-      shell: bash
+    - shell: bash
       run: |
         # Variables and Inputs
 
-        # Release and cluster names; based on a hash of the repository name
+        # Release and cluster name; based on a hash of the repository name
         RELEASE_NAME=pg-$(echo -n "${{github.event.repository.name}}" | md5sum | cut -c 1-8)
         CLUSTER_NAME=${RELEASE_NAME}-crunchy
+
+        if [ "${{ github.event.action }}" == "closed" ]; then
+          echo "PR close does not require a full set of vars."
+          exit 0
+        fi
 
         # Enable S3 backups if all required vars are set
         s3_vars=("${{ inputs.s3_access_key }}" "${{ inputs.s3_secret_key }}" "${{ inputs.s3_bucket }}" "${{ inputs.s3_endpoint }}")
@@ -147,7 +151,7 @@ runs:
           READY=false
           for i in {1..10}; do
             # Check if the 'db' instance has at least 1 ready replica
-            if oc get PostgresCluster/${RELEASE_NAME}-crunchy -o json | jq -e '.status.instances[] | select(.name=="db") | .readyReplicas > 0' > /dev/null 2>&1; then
+            if oc get PostgresCluster/${CLUSTER_NAME} -o json | jq -e '.status.instances[] | select(.name=="db") | .readyReplicas > 0' > /dev/null 2>&1; then
               echo "Crunchy DB instance 'db' is ready "
               READY=true
               break
@@ -162,41 +166,11 @@ runs:
             exit 1
           fi
 
-    - if: steps.deploy.outputs.triggered == 'true'
+    - if: steps.deploy.outputs.triggered == 'true' && github.event_name == 'pull_request'
       shell: bash
       run: |
-        # Add PR specific user to Crunchy DB
-        echo "Adding PR specific user to Crunchy DB"
-        NEW_USER='{"databases":["app-${{ github.event.number }}"],"name":"app-${{ github.event.number }}"}'
-        CURRENT_USERS=$(oc get PostgresCluster/"${CLUSTER_NAME}" -o json | jq '.spec.users')
-        echo "${CURRENT_USERS}"
-
-        # check if current_users already contains the new_user
-        if echo "${CURRENT_USERS}" | jq -e ".[] | select(.name == \"app-${{ github.event.number }}\")" > /dev/null; then
-          echo "User already exists"
-          exit 0
-        fi
-
-        UPDATED_USERS=$(echo "${CURRENT_USERS}" | jq --argjson NEW_USER "${NEW_USER}" '. + [$NEW_USER]')
-        PATCH_JSON=$(jq -n --argjson users "${UPDATED_USERS}" '{"spec": {"users": $users}}')
-        oc patch PostgresCluster/"${CLUSTER_NAME}" --type=merge -p "${PATCH_JSON}"
-        # wait for sometime as it takes time to create the user, query the secret and check if it is created, otherwise wait in a loop for 5 rounds
-        SECRET_FOUND=false
-        for i in {1..5}; do
-          if oc get secret "${CLUSTER_NAME}-pguser-app-${{ github.event.number }}" -o jsonpath='{.metadata.name}' > /dev/null 2>&1; then
-            echo "Secret created"
-            SECRET_FOUND=true
-            break
-          else
-            echo "Attempt $i: Secret not created, waiting for 60 seconds"
-            sleep 60
-          fi
-        done
-
-        if [ "$SECRET_FOUND" = false ]; then
-          echo "Error: Secret ${CLUSTER_NAME}-pguser-app-${{ github.event.number }} was not created after 5 attempts."
-          exit 1
-        fi
+        # Add user to Crunchy DB
+        ./scripts/user_add.sh "${{ github.event.number }}" "${CLUSTER_NAME}"
 
     - if: github.event.action == 'closed'
       uses: bcgov/action-oc-runner@v1.2.1
