@@ -11,7 +11,7 @@ if [ -z "${1:-}" ]; then
 fi
 
 # Inputs and variables
-PR_NO="${1:-0}"
+PR_NO="${1}"
 REPO="${2:-action-crunchy}"
 CLUSTER_NAME=pg-$(echo -n "${REPO}" | md5sum | cut -c 1-8)-crunchy
 
