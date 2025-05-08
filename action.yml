@@ -72,7 +72,8 @@ runs:
         CLUSTER_NAME=${RELEASE_NAME}-crunchy
 
         if [ "${{ github.event.action }}" == "closed" ]; then
-          echo "PR close does not require a full set of vars."
+          echo "PR close does not require a full set of vars, only expose the cluster name."
+          echo "CLUSTER_NAME=${CLUSTER_NAME}" >> $GITHUB_ENV
           exit 0
         fi
 
