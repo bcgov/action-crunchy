@@ -150,7 +150,7 @@ runs:
 
     - uses: actions/checkout@v4
       with:
-        repository: ${{ inputs.repository }}@${{ inputs.ref }}
+        repository: ${{ inputs.repository }}
         ref: ${{ inputs.ref }}
 
     - if: steps.deploy.outputs.triggered == 'true' && github.event_name == 'pull_request'
