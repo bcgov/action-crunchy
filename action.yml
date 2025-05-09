@@ -2,11 +2,21 @@ name: 'Crunchy Database Deployment'
 description: 'Deploy a Crunchy PostgreSQL database to OpenShift'
 
 inputs:
-  directory:
-    description: 'Crunchy Chart directory'
-    default: 'charts/crunchy'
-    required: false
-    validation: "^.+$"
+  ### Required
+  oc_namespace:
+    description: 'OpenShift namespace'
+    required: true
+    validation: "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$"
+  oc_token:
+    description: 'OpenShift token'
+    required: true
+    validation: "^[A-Za-z0-9-_]+$"
+  values_file:
+    description: 'Path to the values.yml file to use for the deployment'
+    required: true
+    validation: "^.+\\.(yml|yaml)$"
+
+  ### Typical / recommended
   oc_server:
     description: 'OpenShift server'
     default: 'https://api.silver.devops.gov.bc.ca:6443'
@@ -16,32 +26,10 @@ inputs:
     description: 'Environment name; omit for PRs'
     required: false
     validation: "^.+$"
-  values_file:
-    description: 'Path to the values.yml file to use for the deployment'
-    required: false
-    validation: "^.+\\.(yml|yaml)$"
   triggers:
     description: 'Paths used to trigger a deployment; e.g. (./backend/ ./frontend/).'
     required: false
     validation: "^(.+)$"
-  ref:
-    # This should be an empty string by default, but can be set to a specific branch/tag/sha
-    description: 'Git ref to use; e.g. branch, tag, sha'
-    default: 'main'
-    required: false
-  repository:
-    description: 'GitHub repository; e.g. org/repo'
-    default: bcgov/action-crunchy
-    required: false
-    validation: "^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$"
-  oc_namespace:
-    description: 'OpenShift namespace'
-    required: true
-    validation: "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$"
-  oc_token:
-    description: 'OpenShift token'
-    required: true
-    validation: "^[A-Za-z0-9-_]+$"
   s3_access_key:
     description: 'S3 access key'
     required: false
@@ -54,16 +42,42 @@ inputs:
   s3_endpoint:
     description: 'S3 endpoint'
     required: false
+
+  ### Usually a bad idea / not recommended
   force_cleanup:
     description: 'Force cleanup of the database'
     default: false
     required: false
     type: boolean
+  directory:
+    description: 'Crunchy Chart directory'
+    default: 'charts/crunchy'
+    required: false
+    validation: "^.+$"
+  repository:
+    description: 'GitHub repository; e.g. org/repo'
+    default: bcgov/action-crunchy
+    required: false
+    validation: "^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$"
+  ref:
+    # This should be an empty string by default, but can be set to a specific branch/tag/sha
+    description: 'Git ref to use; e.g. branch, tag, sha'
+    default: 'main'
+    required: false
+
+outputs:
+  release:
+    description: 'Release name'
+    value: ${{ steps.vars.outputs.RELEASE_NAME }}
+  cluster:
+    description: 'Cluster name'
+    value: ${{ steps.vars.outputs.CLUSTER_NAME }}
 
 runs:
   using: "composite"
   steps:
     - shell: bash
+      id: vars
       run: |
         # Variables and Inputs
 
