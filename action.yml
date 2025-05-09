@@ -59,6 +59,11 @@ inputs:
   s3_endpoint:
     description: 'S3 endpoint'
     required: false
+  force_cleanup:
+    description: 'Force cleanup of the database'
+    default: false
+    required: false
+    type: boolean
 
 runs:
   using: "composite"
@@ -122,7 +127,8 @@ runs:
 
     - uses: bcgov/action-oc-runner@v1.2.1
       id: deploy
-      if: github.event.action != 'closed' # avoid running on PR close event, which unnecessarily patches the cluster.
+      # avoid running on PR close event, which unnecessarily patches the cluster.
+      if: github.event.action != 'closed' || inputs.force_cleanup == 'true'
       with:
         oc_namespace: "${{ inputs.oc_namespace }}"
         oc_token: "${{ inputs.oc_token }}"
@@ -131,50 +137,16 @@ runs:
         ref: ${{ inputs.ref }}
         triggers: "${{ inputs.triggers }}"
         commands: |
-          # Deploy Database
-          echo 'Deploying crunchy helm chart'
-          cd ${{ inputs.directory }}
+          # Check if S3 inputs are provided and construct the deploy_db.sh command accordingly
+          PARAMS="${{ inputs.directory }} ${VALUES_URL} ${{ github.event.repository.name }} ${RELEASE_NAME}"
 
-          # Download values.yml file
-          curl -o ./values.yml "${VALUES_URL}"
-          echo "Downloaded values.yml (current directory: charts/crunchy)"
-
-          # Set Helm app name
-          sed -i 's/^name:.*/name: ${{ github.event.repository.name }}/' Chart.yaml
-
-          # Package, update and deploy the chart
-          helm package -u .
-          if [ "$s3_enabled" == "true" ]; then
-            helm upgrade --install --wait --set crunchy.pgBackRest.s3.enabled=true \
-              --set-string crunchy.pgBackRest.s3.accessKey=${{ inputs.s3_access_key }} \
-              --set-string crunchy.pgBackRest.s3.secretKey=${{ inputs.s3_secret_key }} \
-              --set-string crunchy.pgBackRest.s3.bucket=${{ inputs.s3_bucket }} \
-              --set-string crunchy.pgBackRest.s3.endpoint=${{ inputs.s3_endpoint }} \
-              ${RELEASE_NAME} --values ./values.yml \
-              ./${{ github.event.repository.name }}-5.5.1.tgz
-          else
-            helm upgrade --install --wait ${RELEASE_NAME} --values ./values.yml \
-              ./${{ github.event.repository.name }}-5.5.1.tgz
+          if [ -n "${{ inputs.s3_access_key }}" ] && [ -n "${{ inputs.s3_secret_key }}" ] && [ -n "${{ inputs.s3_bucket }}" ] && [ -n "${{ inputs.s3_endpoint }}" ]; then
+            PARAMS+=" ${{ inputs.s3_access_key }} ${{ inputs.s3_secret_key }} ${{ inputs.s3_bucket }} ${{ inputs.s3_endpoint }}"
           fi
 
-          # Verify successful db deployment; wait retry 10 times with 60 seconds interval
-          READY=false
-          for i in {1..10}; do
-            # Check if the 'db' instance has at least 1 ready replica
-            if oc get PostgresCluster/${CLUSTER_NAME} -o json | jq -e '.status.instances[] | select(.name=="db") | .readyReplicas > 0' > /dev/null 2>&1; then
-              echo "Crunchy DB instance 'db' is ready "
-              READY=true
-              break
-            else
-              echo "Attempt $i: Crunchy DB is not ready, waiting for 60 seconds"
-              sleep 60
-            fi
-          done
-
-          if [ "$READY" = false ]; then
-            echo "Crunchy DB did not become ready after 10 attempts."
-            exit 1
-          fi
+          # Execute the deploy command
+          echo ./scripts/deploy_db.sh $PARAMS
+          ./scripts/deploy_db.sh $PARAMS
 
     - if: steps.deploy.outputs.triggered == 'true' && github.event_name == 'pull_request'
       shell: bash
@@ -183,7 +155,7 @@ runs:
         ./scripts/user_change.sh add "${{ github.event.number }}" "${CLUSTER_NAME}"
 
     - uses: bcgov/action-oc-runner@v1.2.1
-      if: github.event.action == 'closed'
+      if: github.event.action == 'closed' || inputs.force_cleanup == 'true'
       with:
         oc_namespace: "${{ inputs.oc_namespace }}"
         oc_token: "${{ inputs.oc_token }}"

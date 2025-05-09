@@ -32,6 +32,7 @@ jobs:
           s3_secret_key: ${{ secrets.s3_secret_key }}
           s3_bucket: ${{ secrets.s3_bucket }}
           s3_endpoint: ${{ secrets.s3_endpoint }}
+          force_cleanup: true
 
   results:
     name: Results

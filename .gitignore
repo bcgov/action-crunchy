@@ -134,3 +134,7 @@ dist
 .yarn/build-state.yml
 .yarn/install-state.gz
 .pnp.*
+
+# Avoid accidentally leaving a default values.yml in place
+charts/crunchy/values.yml
+charts/crunchy/values.yaml
