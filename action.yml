@@ -131,18 +131,25 @@ runs:
         ref: ${{ github.ref }}                # repository to run diffs!
         triggers: "${{ inputs.triggers }}"
 
+    # - shell: bash
+    #   run: |
+    #     # Dynamically set the ref for actions/checkout based on the event type
+    #     REF="${{ github.ref }}" >> $GITHUB_ENV
+    #     if [ "${{ github.event.action }}" == "closed" ] && [ -n "${{ github.event.pull_request.base.ref }}" ]; then
+    #       REF="${{ github.event.pull_request.base.ref }}" >> $GITHUB_ENV
+    #     fi
+
+    # - uses: actions/checkout@v4
+    #   with:
+    #     repository: ${{ github.repository }}
+    #     ref: "$REF"
     - shell: bash
       run: |
-        # Dynamically set the ref for actions/checkout based on the event type
-        REF="${{ github.ref }}" >> $GITHUB_ENV
-        if [ "${{ github.event.action }}" == "closed" ] && [ -n "${{ github.event.pull_request.base.ref }}" ]; then
-          REF="${{ github.event.pull_request.base.ref }}" >> $GITHUB_ENV
-        fi
-
+        echo "here!"
     - uses: actions/checkout@v4
       with:
-        repository: ${{ github.repository }}
-        ref: "$REF"
+        repository: bcgov/action-crunchy
+        ref: main
 
     - if: steps.triggers.outputs.triggered == 'true' && github.event_name == 'pull_request'
       shell: bash
