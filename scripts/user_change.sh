@@ -2,7 +2,7 @@
 
 # Catch errors and unset variables
 set -euo pipefail
-set -x
+
 # Input validation
 if [ "$#" -lt 3 ]; then
     echo "Add, Remove or Check on PR-based users and databases."

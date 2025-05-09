@@ -38,7 +38,8 @@ jobs:
           echo "Outputs: ${{ toJSON(steps.deploy_db.outputs) }}"
       
       - if: contains(steps.deploy_db.outputs.* , '')
-        run: echo "Error! At least one output is empty. Verify outputs." && exit 1
+        run: |
+          echo "Error! At least one output is empty. Verify outputs." && exit 1
 
   results:
     name: Results
