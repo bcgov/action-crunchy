@@ -143,7 +143,6 @@ runs:
       with:
         repository: ${{ github.repository }}
         ref: "$REF"
-        token: ${{ secrets.GITHUB_TOKEN }}
 
     - if: steps.triggers.outputs.triggered == 'true' && github.event_name == 'pull_request'
       shell: bash
