@@ -35,17 +35,19 @@ jobs:
           force_cleanup: true
 
       - run: |
-          # Verify outputs
-          echo "Outputs: ${{ toJSON(steps.deploy_db.outputs) }}"
-          
-          # Dynamically check all outputs to ensure none are empty
-          for key in $(echo "${{ toJSON(steps.deploy_db.outputs) }}" | jq -r 'keys[]'); do
-            value=$(echo "${{ toJSON(steps.deploy_db.outputs) }}" | jq -r ".$key")
-            if [ -z "$value" ]; then
-              echo "Error! Output $key is empty. Verify outputs."
-              exit 1
-            fi
-          done
+          # Verify outputs using jq
+          echo "Outputs: ${{ toJSON(steps.deploy_db.outputs) }}" > outputs.json
+          # for key in $(jq -r 'keys[]' outputs.json); do
+          #   value=$(jq -r ".$key" outputs.json)
+          #   if [ -z "$value" ]; then
+          #     echo "Error! Output $key is empty. Verify outputs."
+          #     exit 1
+          #   fi
+          # done
+          # rm outputs.json
+
+      - if: contains(steps.deploy_db.outputs.* , '')
+        run: echo "Error! At least one output is empty. Verify outputs." && exit 1
 
   results:
     name: Results
