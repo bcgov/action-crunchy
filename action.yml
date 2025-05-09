@@ -148,6 +148,11 @@ runs:
           echo ./scripts/deploy_db.sh $PARAMS
           ./scripts/deploy_db.sh $PARAMS
 
+    - uses: actions/checkout@v4
+      with:
+        repository: ${{ inputs.repository }}@${{ inputs.ref }}
+        ref: ${{ inputs.ref }}
+
     - if: steps.deploy.outputs.triggered == 'true' && github.event_name == 'pull_request'
       shell: bash
       run: |
