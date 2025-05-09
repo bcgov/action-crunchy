@@ -2,7 +2,7 @@
 
 # Catch errors and unset variables
 set -euo pipefail
-set -x
+
 # Remove S3_ENABLED and adjust logic to use S3 inputs if provided
 if [ "$#" -lt 4 ]; then
   echo "Usage: $0 <directory> <values_url> <app_name> <release_name> [s3_access_key] [s3_secret_key] [s3_bucket] [s3_endpoint]"

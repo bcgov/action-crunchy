@@ -34,6 +34,13 @@ jobs:
           s3_endpoint: ${{ secrets.s3_endpoint }}
           force_cleanup: true
 
+      - run: |
+          echo "Outputs: ${{ toJSON(steps.deploy_db.outputs) }}"
+      
+      - if: contains(steps.deploy_db.outputs.* , '')
+        run: |
+          echo "Error! At least one output is empty. Verify outputs." && exit 1
+
   results:
     name: Results
     needs: [deploy-db]
