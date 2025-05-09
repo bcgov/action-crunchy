@@ -134,9 +134,9 @@ runs:
     - shell: bash
       run: |
         # Dynamically set the ref for actions/checkout based on the event type
-        REF="${{ github.ref }}"
+        REF="${{ github.ref }}" >> $GITHUB_ENV
         if [ "${{ github.event.action }}" == "closed" ] && [ -n "${{ github.event.pull_request.base.ref }}" ]; then
-          REF="${{ github.event.pull_request.base.ref }}"
+          REF="${{ github.event.pull_request.base.ref }}" >> $GITHUB_ENV
         fi
 
     - uses: actions/checkout@v4
