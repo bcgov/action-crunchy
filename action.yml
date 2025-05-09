@@ -131,11 +131,19 @@ runs:
         ref: ${{ github.ref }}                # repository to run diffs!
         triggers: "${{ inputs.triggers }}"
 
+    - shell: bash
+      run: |
+        # Dynamically set the ref for actions/checkout based on the event type
+        REF="${{ github.ref }}"
+        if [ "${{ github.event.action }}" == "closed" ] && [ -n "${{ github.event.pull_request.base.ref }}" ]; then
+          REF="${{ github.event.pull_request.base.ref }}"
+        fi
+
     - uses: actions/checkout@v4
-      if: steps.triggers.outputs.triggered == 'true'
       with:
-        repository: ${{ inputs.repository }}
-        ref: ${{ inputs.ref }}
+        repository: ${{ github.repository }}
+        ref: "$REF"
+        token: ${{ secrets.GITHUB_TOKEN }}
 
     - if: steps.triggers.outputs.triggered == 'true' && github.event_name == 'pull_request'
       shell: bash
