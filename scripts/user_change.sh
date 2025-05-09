@@ -101,7 +101,7 @@ elif [ "$COMMAND" == "remove" ]; then
     echo "${CRUNCHY_PG_PRIMARY_POD_NAME}"
 
     # Terminate connections to the database
-    oc exec -it "${CRUNCHY_PG_PRIMARY_POD_NAME}" -- bash -c "psql -U postgres -d postgres -c \"SELECT pg_terminate_backend(pg_stat_activity.pid) FROM pg_stat_activity WHERE pg_stat_activity.datname = \\\"app-${PR_NO}\\\" AND pid <> pg_backend_pid();\""
+    oc exec -it "${CRUNCHY_PG_PRIMARY_POD_NAME}" -- bash -c "psql -U postgres -d postgres -c \"SELECT pg_terminate_backend(pg_stat_activity.pid) FROM pg_stat_activity WHERE pg_stat_activity.datname = 'app-${PR_NO}' AND pid <> pg_backend_pid();\""
     if [ $? -ne 0 ]; then
         echo "Failed to terminate connections for database app-${PR_NO}" >&2
         exit 1
