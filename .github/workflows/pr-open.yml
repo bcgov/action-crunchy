@@ -37,10 +37,15 @@ jobs:
       - run: |
           # Verify outputs
           echo "Outputs: ${{ toJSON(steps.deploy_db.outputs) }}"
-          if [ "${{ steps.deploy_db.outputs.cluster }}" == "" ]||[ "${{ steps.deploy_db.outputs.release }}" == "" ]]; then
-            echo "Error!  Verify outputs."
-            exit 1
-          fi
+          
+          # Dynamically check all outputs to ensure none are empty
+          for key in $(echo "${{ toJSON(steps.deploy_db.outputs) }}" | jq -r 'keys[]'); do
+            value=$(echo "${{ toJSON(steps.deploy_db.outputs) }}" | jq -r ".$key")
+            if [ -z "$value" ]; then
+              echo "Error! Output $key is empty. Verify outputs."
+              exit 1
+            fi
+          done
 
   results:
     name: Results
