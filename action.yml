@@ -85,7 +85,7 @@ runs:
         RELEASE_NAME=pg-$(echo -n "${{github.event.repository.name}}" | md5sum | cut -c 1-8)
         CLUSTER_NAME=${RELEASE_NAME}-crunchy
 
-        # Process vars and send to GITHUB_OUTPUT
+        # Process vars and send to GITHUB_ENV (local vars) and GITHUB_OUTPUT (outputs)
         for var in RELEASE_NAME CLUSTER_NAME; do
           if [ -n "${!var}" ]; then
             echo "${var}=${!var}"
