@@ -88,6 +88,8 @@ runs:
         # Process vars and send to GITHUB_OUTPUT
         for var in RELEASE_NAME CLUSTER_NAME; do
           if [ -n "${!var}" ]; then
+            echo "${var}=${!var}"
+            echo "${var}=${!var}" >> $GITHUB_ENV
             echo "${var}=${!var}" >> $GITHUB_OUTPUT
           else
             echo "Warning: ${var} is not set."
