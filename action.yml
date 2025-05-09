@@ -11,17 +11,8 @@ inputs:
     description: 'OpenShift token'
     required: true
     validation: "^[A-Za-z0-9-_]+$"
-  values_file:
-    description: 'Path to the values.yml file to use for the deployment'
-    required: true
-    validation: "^.+\\.(yml|yaml)$"
 
   # Typical / recommended
-  oc_server:
-    description: 'OpenShift server'
-    default: 'https://api.silver.devops.gov.bc.ca:6443'
-    required: false
-    validation: "^https?://.+:6443$"
   environment:
     description: 'Environment name; omit for PRs'
     required: false
@@ -30,6 +21,15 @@ inputs:
     description: 'Paths used to trigger a deployment; e.g. (./backend/ ./frontend/).'
     required: false
     validation: "^(.+)$"
+  oc_server:
+    description: 'OpenShift server'
+    default: 'https://api.silver.devops.gov.bc.ca:6443'
+    required: false
+    validation: "^https?://.+:6443$"
+  values_file:
+    description: 'Path to the values.yml file to use for the deployment'
+    required: true
+    validation: "^.+\\.(yml|yaml)$"
   s3_access_key:
     description: 'S3 access key'
     required: false
