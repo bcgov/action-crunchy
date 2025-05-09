@@ -2,7 +2,7 @@ name: 'Crunchy Database Deployment'
 description: 'Deploy a Crunchy PostgreSQL database to OpenShift'
 
 inputs:
-  ### Required
+  # Required
   oc_namespace:
     description: 'OpenShift namespace'
     required: true
@@ -16,7 +16,7 @@ inputs:
     required: true
     validation: "^.+\\.(yml|yaml)$"
 
-  ### Typical / recommended
+  # Typical / recommended
   oc_server:
     description: 'OpenShift server'
     default: 'https://api.silver.devops.gov.bc.ca:6443'
@@ -43,7 +43,7 @@ inputs:
     description: 'S3 endpoint'
     required: false
 
-  ### Usually a bad idea / not recommended
+  # Usually a bad idea / not recommended
   force_cleanup:
     description: 'Force cleanup of the database'
     default: false
