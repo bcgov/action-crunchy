@@ -127,31 +127,15 @@ runs:
         oc_namespace: "${{ inputs.oc_namespace }}"
         oc_token: "${{ inputs.oc_token }}"
         oc_server: "${{ inputs.oc_server }}"
-        repository: ${{ github.repository }}  # Always use the downstream
-        # ref: ${{ github.ref }}                # repository to run diffs!
-        # repository: ${{ github.repository }}  # Always use the downstream
-        # ref: ${{ github.ref }}                # repository to run diffs!
+        repository: ${{ github.repository }}                          # Always use the downstream
+        ref: ${{ github.event.pull_request.base.ref || github.ref }}  # repository to run diffs!
         triggers: "${{ inputs.triggers }}"
 
-    # - shell: bash
-    #   run: |
-    #     # Dynamically set the ref for actions/checkout based on the event type
-    #     REF="${{ github.ref }}" >> $GITHUB_ENV
-    #     if [ "${{ github.event.action }}" == "closed" ] && [ -n "${{ github.event.pull_request.base.ref }}" ]; then
-    #       REF="${{ github.event.pull_request.base.ref }}" >> $GITHUB_ENV
-    #     fi
-
-    # - uses: actions/checkout@v4
-    #   with:
-    #     repository: ${{ github.repository }}
-    #     ref: "$REF"
-    - shell: bash
-      run: |
-        echo "here!"
     - uses: actions/checkout@v4
+      if: steps.triggers.outputs.triggered == 'true'
       with:
-        repository: bcgov/action-crunchy
-        ref: main
+        repository: ${{ inputs.repository }}
+        ref: ${{ inputs.ref }}
 
     - if: steps.triggers.outputs.triggered == 'true' && github.event_name == 'pull_request' && github.event.action != 'closed'
       shell: bash
