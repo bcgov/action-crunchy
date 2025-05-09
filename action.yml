@@ -132,8 +132,8 @@ runs:
         oc_namespace: "${{ inputs.oc_namespace }}"
         oc_token: "${{ inputs.oc_token }}"
         oc_server: "${{ inputs.oc_server }}"
-        repository: ${{ github.repository }}
-        ref: ${{ github.ref }}
+        repository: ${{ github.repository }}  # Always use the downstream
+        ref: ${{ github.ref }}                # repository to run diffs!
         triggers: "${{ inputs.triggers }}"
 
     - uses: actions/checkout@v4
