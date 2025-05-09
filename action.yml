@@ -125,46 +125,46 @@ runs:
           fi
         done
 
+    # Check triggers and setup oc binary
     - uses: bcgov/action-oc-runner@v1.2.1
-      id: deploy
-      # avoid running on PR close event, which unnecessarily patches the cluster.
-      if: github.event.action != 'closed' || inputs.force_cleanup == 'true'
+      id: triggers
       with:
         oc_namespace: "${{ inputs.oc_namespace }}"
         oc_token: "${{ inputs.oc_token }}"
         oc_server: "${{ inputs.oc_server }}"
-        repository: ${{ inputs.repository }}
-        ref: ${{ inputs.ref }}
+        repository: ${{ github.repository }}
+        ref: ${{ github.ref }}
         triggers: "${{ inputs.triggers }}"
-        commands: |
-          # Check if S3 inputs are provided and construct the deploy_db.sh command accordingly
-          PARAMS="${{ inputs.directory }} ${VALUES_URL} ${{ github.event.repository.name }} ${RELEASE_NAME}"
-
-          if [ -n "${{ inputs.s3_access_key }}" ] && [ -n "${{ inputs.s3_secret_key }}" ] && [ -n "${{ inputs.s3_bucket }}" ] && [ -n "${{ inputs.s3_endpoint }}" ]; then
-            PARAMS+=" ${{ inputs.s3_access_key }} ${{ inputs.s3_secret_key }} ${{ inputs.s3_bucket }} ${{ inputs.s3_endpoint }}"
-          fi
-
-          # Execute the deploy command
-          echo ./scripts/deploy_db.sh $PARAMS
-          ./scripts/deploy_db.sh $PARAMS
 
     - uses: actions/checkout@v4
+      if: steps.triggers.outputs.triggered == 'true'
       with:
         repository: ${{ inputs.repository }}
         ref: ${{ inputs.ref }}
 
-    - if: steps.deploy.outputs.triggered == 'true' && github.event_name == 'pull_request'
+    - if: steps.triggers.outputs.triggered == 'true' && github.event_name == 'pull_request'
+      shell: bash
+      run: |
+        # Deploy the database
+
+        # Check if S3 inputs are provided and construct the deploy_db.sh command accordingly
+        PARAMS="${{ inputs.directory }} ${VALUES_URL} ${{ github.event.repository.name }} ${RELEASE_NAME}"
+        if [ -n "${{ inputs.s3_access_key }}" ] && [ -n "${{ inputs.s3_secret_key }}" ] && [ -n "${{ inputs.s3_bucket }}" ] && [ -n "${{ inputs.s3_endpoint }}" ]; then
+          PARAMS+=" ${{ inputs.s3_access_key }} ${{ inputs.s3_secret_key }} ${{ inputs.s3_bucket }} ${{ inputs.s3_endpoint }}"
+        fi
+
+        # Execute the deploy command
+        echo ./scripts/deploy_db.sh $PARAMS
+        ./scripts/deploy_db.sh $PARAMS
+
+    - if: steps.triggers.outputs.triggered == 'true' && github.event_name == 'pull_request'
       shell: bash
       run: |
         # Add user to Crunchy DB
         ./scripts/user_change.sh add "${{ github.event.number }}" "${CLUSTER_NAME}"
 
-    - uses: bcgov/action-oc-runner@v1.2.1
-      if: github.event.action == 'closed' || inputs.force_cleanup == 'true'
-      with:
-        oc_namespace: "${{ inputs.oc_namespace }}"
-        oc_token: "${{ inputs.oc_token }}"
-        oc_server: "${{ inputs.oc_server }}"
-        commands: |
-          # Remove PR specific user from Crunchy DB
-          ./scripts/user_change.sh remove "${{ github.event.number }}" "${CLUSTER_NAME}"
+    - if: github.event.action == 'closed' || inputs.force_cleanup == 'true'
+      shell: bash
+      run: |
+        # Remove PR specific user from Crunchy DB
+        ./scripts/user_change.sh remove "${{ github.event.number }}" "${CLUSTER_NAME}"
