@@ -53,7 +53,7 @@ wait_for_secret() {
             return 0
         else
             echo "Attempt $i: Secret not created, waiting for 30 seconds"
-            sleep 60
+            sleep 30
         fi
     done
     echo "Error: Secret ${secret_name} was not created after 10 attempts."
