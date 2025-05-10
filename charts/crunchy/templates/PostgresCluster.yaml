@@ -97,7 +97,7 @@ spec:
 
  # take user and database names from the values file if they are defined
   {{- if .Values.crunchy.users -}}
-  {{- tpl (toYaml .Values.crunchy.users) . | nindent 2 -}}
+  {{- tpl (toYaml .Values.crunchy.users) $ | nindent 2 -}}
   {{- else -}}
   users:
     - name: {{ .Values.global.config.dbName }}

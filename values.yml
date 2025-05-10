@@ -119,7 +119,14 @@ crunchy: # enable it for TEST and PROD, for PR based pipelines simply use single
       requests:
         cpu: 10m
         memory: 32Mi
-  users: #custom users section example, can contain multiple users and template for interpolation.
+  # Custom users section. This section defines database users and their associated configurations.
+  # Each user entry can include the following fields:
+  # - name: The username. Can use template interpolation (e.g., {{ .Values.global.config.dbName }}).
+  # - databases: A list of databases the user has access to. Can include template-interpolated values.
+  # - options: A string specifying user privileges (e.g., "SUPERUSER CREATEDB CREATEROLE"). Ensure the options are valid PostgreSQL roles.
+  # For more details, refer to the Crunchy Postgres Operator documentation: 
+  # https://access.crunchydata.com/documentation/postgres-operator/latest/tutorials/basic-setup/user-management
+  users: 
     - name: {{ .Values.global.config.dbName }}
       databases:
         - {{ .Values.global.config.dbName }}
