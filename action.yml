@@ -152,7 +152,7 @@ runs:
         repository: ${{ inputs.repository }}
         ref: ${{ inputs.ref }}
 
-    - if: steps.triggers.outputs.triggered == 'true' && github.event_name == 'pull_request' && github.event.action != 'closed'
+    - if: steps.triggers.outputs.triggered == 'true' && github.event.action != 'closed'
       shell: bash
       run: |
         # Deploy the database
