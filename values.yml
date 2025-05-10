@@ -127,15 +127,15 @@ crunchy: # enable it for TEST and PROD, for PR based pipelines simply use single
   # For more details, refer to the Crunchy Postgres Operator documentation: 
   # https://access.crunchydata.com/documentation/postgres-operator/latest/tutorials/basic-setup/user-management
   users: 
-    - name: {{ .Values.global.config.dbName }}
+    - name: '{{ .Values.global.config.dbName }}'
       databases:
-        - {{ .Values.global.config.dbName }}
+        - '{{ .Values.global.config.dbName }}'
       options: "SUPERUSER CREATEDB CREATEROLE"
-    - name: postgres
+    - name: 'postgres'
       databases:
-        - postgres
-        - {{ .Values.global.config.dbName }}
-    - name: appproxy
+        - 'postgres'
+        - '{{ .Values.global.config.dbName }}'
+    - name: '{{ .Values.global.config.dbName }}proxy'
       databases:
-        - {{ .Values.global.config.dbName }}
-        - postgres
+        - '{{ .Values.global.config.dbName }}'
+        - 'postgres'
