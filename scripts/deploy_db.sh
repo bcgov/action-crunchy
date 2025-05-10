@@ -43,8 +43,8 @@ if [ -n "$S3_ACCESS_KEY" ] && [ -n "$S3_SECRET_KEY" ] && [ -n "$S3_BUCKET" ] && 
 fi
 
 # Execute the Helm command
-helm upgrade --debug --dry-run=server --install --wait "$RELEASE_NAME" --values ./values.yml ./$APP_NAME-5.5.1.tgz $SET_STRINGS
-
+#helm upgrade --debug --dry-run=server --install --wait "$RELEASE_NAME" --values ./values.yml ./$APP_NAME-5.5.1.tgz $SET_STRINGS
+helm upgrade --install --wait "$RELEASE_NAME" --values ./values.yml ./$APP_NAME-5.5.1.tgz $SET_STRINGS
 # Verify successful db deployment; wait retry 10 times with 60 seconds interval
 for i in {1..10}; do
   # Check if the 'db' instance has at least 1 ready replica

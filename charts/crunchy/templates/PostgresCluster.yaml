@@ -94,13 +94,20 @@ spec:
                     postgres-operator.crunchydata.com/cluster:
                       {{ template "crunchy-postgres.fullname" . }}
                     postgres-operator.crunchydata.com/instance-set: {{ .Values.crunchy.instances.name }}
-
-
-
-  {{- if .Values.crunchy.users -}}
+  
+  {{ if .Values.crunchy.users }}
   users:
-  {{- tpl (toYaml .Values.crunchy.users) $ | nindent 4 -}}
-  {{- else -}}
+    {{- range $user := .Values.crunchy.users }}
+    - name: {{ tpl $user.name $ }}
+      databases:
+        {{- range $db := $user.databases }}
+        - {{ tpl $db $}}
+        {{- end }}
+      {{- if $user.options }}  
+      options: {{ tpl $user.options $ | quote }}
+      {{- end }}
+    {{- end }}
+  {{ else }}
   users:
     - name: {{ .Values.global.config.dbName }}
       databases:
@@ -114,7 +121,7 @@ spec:
       databases:
         - {{ .Values.global.config.dbName }}
         - postgres
-  {{- end -}}
+  {{ end }}
 
   {{- if .Values.crunchy.pgBackRest.enabled }}
   backups:
