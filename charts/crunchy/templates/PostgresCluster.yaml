@@ -95,8 +95,8 @@ spec:
                       {{ template "crunchy-postgres.fullname" . }}
                     postgres-operator.crunchydata.com/instance-set: {{ .Values.crunchy.instances.name }}
 
-  # take user and database names from the values file if they are defined
-  
+
+
   {{- if .Values.crunchy.users -}}
   users:
   {{- tpl (toYaml .Values.crunchy.users) $ | nindent 4 -}}
