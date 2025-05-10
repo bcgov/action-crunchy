@@ -119,3 +119,16 @@ crunchy: # enable it for TEST and PROD, for PR based pipelines simply use single
       requests:
         cpu: 10m
         memory: 32Mi
+  users: #custom users section example, can contain multiple users and template for interpolation.
+    - name: {{ .Values.global.config.dbName }}
+      databases:
+        - {{ .Values.global.config.dbName }}
+      options: "SUPERUSER CREATEDB CREATEROLE"
+    - name: postgres
+      databases:
+        - postgres
+        - {{ .Values.global.config.dbName }}
+    - name: appproxy
+      databases:
+        - {{ .Values.global.config.dbName }}
+        - postgres
