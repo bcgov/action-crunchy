@@ -99,10 +99,10 @@ spec:
   {{ if .Values.crunchy.users }}
   users:
     {{- range $user := .Values.crunchy.users }}
-    - name: {{ tpl $user.name $ }}
+    - name: {{ tpl $user.name $ | quote }}
       databases:
         {{- range $db := $user.databases }}
-        - {{ tpl $db $}}
+        - {{ tpl $db $ | quote}}
         {{- end }}
       {{- if $user.options }}  
       options: {{ tpl $user.options $ | quote }}
