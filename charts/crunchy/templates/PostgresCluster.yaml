@@ -94,6 +94,7 @@ spec:
                     postgres-operator.crunchydata.com/cluster:
                       {{ template "crunchy-postgres.fullname" . }}
                     postgres-operator.crunchydata.com/instance-set: {{ .Values.crunchy.instances.name }}
+                    app.kubernetes.io/namespace: {{ .Release.Namespace }}
   
   {{ if .Values.crunchy.users }}
   users:
