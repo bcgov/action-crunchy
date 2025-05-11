@@ -94,7 +94,21 @@ spec:
                     postgres-operator.crunchydata.com/cluster:
                       {{ template "crunchy-postgres.fullname" . }}
                     postgres-operator.crunchydata.com/instance-set: {{ .Values.crunchy.instances.name }}
-
+                    app.kubernetes.io/namespace: {{ .Release.Namespace }}
+  
+  {{ if .Values.crunchy.users }}
+  users:
+    {{- range $user := .Values.crunchy.users }}
+    - name: {{ tpl $user.name $ | quote }}
+      databases:
+        {{- range $db := $user.databases }}
+        - {{ tpl $db $ | quote}}
+        {{- end }}
+      {{- if $user.options }}  
+      options: {{ tpl $user.options $ | quote }}
+      {{- end }}
+    {{- end }}
+  {{ else }}
   users:
     - name: {{ .Values.global.config.dbName }}
       databases:
@@ -108,7 +122,9 @@ spec:
       databases:
         - {{ .Values.global.config.dbName }}
         - postgres
-    {{- if .Values.crunchy.pgBackRest.enabled }}
+  {{ end }}
+
+  {{- if .Values.crunchy.pgBackRest.enabled }}
   backups:
     pgbackrest:
       {{- if .Values.crunchy.pgBackRest.s3.enabled}}

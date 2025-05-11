@@ -28,7 +28,7 @@ echo "Downloaded values.yml (current directory: charts/crunchy)"
 
 # Set Helm app name
 sed -i "s/^name:.*/name: $APP_NAME/" Chart.yaml
-
+CHART_VERSION=$(yq -r .version Chart.yaml)
 # Package, update and deploy the chart
 helm package -u .
 
@@ -43,8 +43,11 @@ if [ -n "$S3_ACCESS_KEY" ] && [ -n "$S3_SECRET_KEY" ] && [ -n "$S3_BUCKET" ] && 
 fi
 
 # Execute the Helm command
-helm upgrade --install --wait "$RELEASE_NAME" --values ./values.yml ./$APP_NAME-5.5.1.tgz $SET_STRINGS
-
+if [ "${DEBUG_MODE:-false}" = "true" ]; then
+  helm upgrade --debug --dry-run --install --wait "$RELEASE_NAME" --values ./values.yml ./$APP_NAME-$CHART_VERSION.tgz $SET_STRINGS
+else
+  helm upgrade --install --wait "$RELEASE_NAME" --values ./values.yml ./$APP_NAME-$CHART_VERSION.tgz $SET_STRINGS
+fi
 # Verify successful db deployment; wait retry 10 times with 60 seconds interval
 for i in {1..10}; do
   # Check if the 'db' instance has at least 1 ready replica

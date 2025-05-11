@@ -36,6 +36,7 @@ Common labels
 {{- define "crunchy-postgres.labels" -}}
 helm.sh/chart: {{ include "crunchy-postgres.chart" . }}
 {{ include "crunchy-postgres.selectorLabels" . }}
+app.kubernetes.io/namespace: {{ .Release.Namespace }}
 {{- if .Chart.AppVersion }}
 app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 {{- end }}
