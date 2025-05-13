@@ -103,3 +103,74 @@ graph TD
         class B,C,F,J,K,L,M,N,O action;
         class D,G wait;
 ```
+
+### Sample Usage in GitHub Actions
+
+#### Backup/Restore Using PVC
+
+The following example demonstrates how to deploy a Crunchy PostgreSQL database with backup/restore functionality using Persistent Volume Claims (PVC):
+
+```yaml
+name: Deploy Crunchy Database
+
+on:
+    pull_request:
+        types: [opened, synchronize, reopened]
+    push:
+        branches:
+            - main
+
+jobs:
+    deploy-crunchy-db:
+        steps:
+            - name: Deploy Crunchy
+                uses: bcgov/action-crunchy@v1.1.0 # Replace @v1.1.0 with a specific commit SHA for better reliability.
+                id: deploy_crunchy
+                with:
+                    oc_namespace: ${{ secrets.OC_NAMESPACE }}
+                    oc_token: ${{ secrets.OC_TOKEN }}
+                    environment: ${{ inputs.environment }}
+                    values_file: charts/crunchy/values.yml # Path to a valid Helm values file.
+                    triggers: ${{ inputs.triggers }}
+```
+
+#### Backup/Restore Using S3
+
+This example extends the deployment to include S3-based backup/restore functionality. Ensure the required S3 credentials and bucket details are configured as secrets in your repository:
+
+```yaml
+name: Deploy Crunchy Database
+
+on:
+    pull_request:
+        types: [opened, synchronize, reopened]
+    push:
+        branches:
+            - main
+
+jobs:
+    deploy-crunchy-db:
+        steps:
+            - name: Deploy Crunchy
+                uses: bcgov/action-crunchy@v1.1.0 # Replace @v1.1.0 with a specific commit SHA for better reliability.
+                id: deploy_crunchy
+                with:
+                    oc_namespace: ${{ secrets.OC_NAMESPACE }}
+                    oc_token: ${{ secrets.OC_TOKEN }}
+                    environment: ${{ inputs.environment }}
+                    values_file: charts/crunchy/values.yml # Path to a valid Helm values file.
+                    triggers: ${{ inputs.triggers }}
+                    s3_access_key: ${{ secrets.s3_access_key }}
+                    s3_secret_key: ${{ secrets.s3_secret_key }}
+                    s3_bucket: ${{ secrets.s3_bucket }}
+                    s3_endpoint: ${{ secrets.s3_endpoint }}
+```
+
+#### Notes:
+- Replace `bcgov/action-crunchy@v1.1.0` with a specific commit SHA for better reproducibility.
+- Ensure all required secrets (e.g., `OC_NAMESPACE`, `OC_TOKEN`, `s3_access_key`, etc.) are properly configured in your repository's settings.
+- The `values_file` should point to a valid Helm values file tailored to your deployment needs.
+- Use the S3 configuration only if your deployment requires S3-based backups.
+- For PVC-based backups, the S3-related inputs can be omitted.
+- Customize the `triggers` input to suit your workflow requirements.
+
