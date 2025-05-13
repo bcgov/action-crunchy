@@ -216,7 +216,7 @@ spec:
         global:
           client_tls_sslmode: {{ default "disable" .Values.crunchy.proxy.pgBouncer.clientTlsSslmode }}
           pool_mode: {{ default "session" .Values.crunchy.proxy.pgBouncer.poolMode }}
-          max_db_connections: {{ .Values.crunchy.proxy.pgBouncer.maxConnections }}
+          max_db_connections: {{ .Values.crunchy.proxy.pgBouncer.maxConnections | quote }}
 
       {{ if .Values.crunchy.proxy.pgBouncer.image }}
       image: {{ .Values.crunchy.proxy.pgBouncer.image }}
