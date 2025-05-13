@@ -142,7 +142,6 @@ spec:
         repo2-s3-uri-style: path
         {{- end }}
       repos:
-
         - name: repo1
           schedules:
             full: {{ .Values.crunchy.pgBackRest.pvc.fullBackupSchedule }}
@@ -215,9 +214,10 @@ spec:
     pgBouncer:
       config:
         global:
-          client_tls_sslmode: disable
-          pool_mode: session
+          client_tls_sslmode: {{ default "disable" .Values.crunchy.proxy.pgBouncer.clientTlsSslmode }}
+          pool_mode: {{ default "session" .Values.crunchy.proxy.pgBouncer.poolMode }}
           max_db_connections: {{ .Values.crunchy.proxy.pgBouncer.maxConnections | quote }}
+
       {{ if .Values.crunchy.proxy.pgBouncer.image }}
       image: {{ .Values.crunchy.proxy.pgBouncer.image }}
       {{ end }}
@@ -228,6 +228,12 @@ spec:
         requests:
           cpu: {{ .Values.crunchy.proxy.pgBouncer.requests.cpu }}
           memory: {{ .Values.crunchy.proxy.pgBouncer.requests.memory }}
+      sidecars:
+        pgbouncerConfig:
+          resources:
+            requests:
+              cpu: {{ .Values.crunchy.proxy.pgBouncer.requests.cpu }}
+              memory: {{ .Values.crunchy.proxy.pgBouncer.requests.memory }}
       affinity:
         podAntiAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:
@@ -239,5 +245,6 @@ spec:
                     postgres-operator.crunchydata.com/cluster:
                       {{ template "crunchy-postgres.fullname" . }}
                     postgres-operator.crunchydata.com/role: pgbouncer
+                    app.kubernetes.io/namespace: {{ .Release.Namespace }}
   {{- end }}
   {{- end }}
