@@ -174,3 +174,11 @@ jobs:
 - For PVC-based backups, the S3-related inputs can be omitted.
 - Customize the `triggers` input to suit your workflow requirements.
 
+
+> **Important**: <b><i><u>Never reuse the same s3/object store, bucket path across different Crunchy deployments or instances (dev, test, prod)</b></i></u>
+
+### Troubleshooting and Support
+
+If you encounter issues, check out the [Troubleshooting Guide](https://github.com/bcgov/crunchy-postgres/blob/main/Troubleshoot.md) for quick solutions.
+
+Need more help? Join the discussion in the [CrunchyDB Rocket.Chat Channel](https://chat.developer.gov.bc.ca/channel/crunchydb) to get support from the community and experts.
