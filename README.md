@@ -238,16 +238,25 @@ The Crunchy deployment supports two backup methods:
 To enable or restore from backups, adjust the configuration in your values.yml file:
 
 ```yaml
-# Cloning from backups
+# Cloning from backups in object store
 clone:
   enabled: true
-  path: /backups/cluster/version/1
+  s3:
+    enabled: true
+  path: '/backups/cluster/version/1' # make sure this bucket path points to a valid backup location.
+
+# Cloning from backups in pvc
+clone:
+  enabled: true
+  pvc:
+    enabled: true
+    clusterName: 'existing crunchy cluster name in the namespace'
 
 # Point-in-time recovery
 restore:
-  repoName: repo-name
+  repoName: 'repo1' # for pvc 'repo2' for object store
   enabled: true
-  target: 2024-03-24 17:16:00-07
+  target: '2024-03-24 17:16:00-07'
 ```
 
 ## Best Practices

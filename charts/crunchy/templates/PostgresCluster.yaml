@@ -32,7 +32,7 @@ spec:
     {{- end}}
     {{- if .Values.crunchy.clone.pvc.enabled}}
     postgresCluster:
-      clusterName: {{ template "crunchy-postgres.fullname" . }}
+      clusterName: {{ .Values.crunchy.clone.pvc.clusterName }}
       repoName: repo1
     {{- end}}
   {{- end}}
