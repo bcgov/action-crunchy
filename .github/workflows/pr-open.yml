@@ -11,7 +11,7 @@ concurrency:
 permissions: {}
 
 jobs:
-  deploy-db-computed:
+  deploy-db-computed: # with s3 and computed release name
     name: Deploy Database Computed
     runs-on: ubuntu-24.04
     steps:
@@ -39,7 +39,7 @@ jobs:
       - if: contains(steps.deploy_db.outputs.* , '')
         run: |
           echo "Error! At least one output is empty. Verify outputs." && exit 1
-  deploy-db-manual:
+  deploy-db-manual: # without s3 , only pvc and manual release name
     name: Deploy Database Explicit Release Name
     runs-on: ubuntu-24.04
     steps:
@@ -55,10 +55,6 @@ jobs:
           oc_token: ${{ secrets.oc_token }}
           ref: ${{ github.ref }}
           values_file: values.yml
-          s3_access_key: ${{ secrets.s3_access_key }}
-          s3_secret_key: ${{ secrets.s3_secret_key }}
-          s3_bucket: ${{ secrets.s3_bucket }}
-          s3_endpoint: ${{ secrets.s3_endpoint }}
           force_cleanup: true
           release_name: pg-action-crunchy
       - run: |
