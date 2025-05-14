@@ -32,7 +32,7 @@ spec:
     {{- end}}
     {{- if .Values.crunchy.clone.pvc.enabled}}
     postgresCluster:
-      clusterName: {{ template "crunchy-postgres.fullname" . }}
+      clusterName: {{ .Values.crunchy.clone.pvc.clusterName }}
       repoName: repo1
     {{- end}}
   {{- end}}
@@ -172,6 +172,12 @@ spec:
           - --type=time
           - --target="{{ .Values.crunchy.restore.target }}"
       {{- end }}
+      {{- if and .Values.crunchy.pgBackRest.manual .Values.crunchy.pgBackRest.manual.enabled }}
+      manual:
+        options:
+          - --type=full
+        repoName: {{ default "repo1" .Values.crunchy.pgBackRest.manual.repo }} # default to repo1 which is pvc
+      {{- end }}
       # this stuff is for the "pgbackrest" container (the only non-init container) in the "postgres-crunchy-repo-host" pod
       repoHost:
         resources:
@@ -247,4 +253,19 @@ spec:
                     postgres-operator.crunchydata.com/role: pgbouncer
                     app.kubernetes.io/namespace: {{ .Release.Namespace }}
   {{- end }}
+  {{- if .Values.crunchy.shutdown }}
+  # Whether or not the PostgreSQL cluster should be stopped.
+  # When this is true, workloads are scaled to zero and CronJobs are suspended.
+  # Other resources, such as Services and Volumes, remain in place.
+  shutdown: true
   {{- end }}
+  {{- if and .Values.crunchy.standby .Values.crunchy.standby.enabled}}
+  # Whether or not the PostgreSQL cluster should be read-only. When this is
+  # true, WAL files are applied from a pgBackRest repository or another
+  # PostgreSQL server.
+  standby:
+    enabled: true
+    # The name of the pgBackRest repository to follow for WAL files
+    repoName: {{ .Values.crunchy.standby.repoName }}
+  {{- end }}
+{{- end }}

@@ -11,8 +11,8 @@ concurrency:
 permissions: {}
 
 jobs:
-  deploy-db:
-    name: Deploy Database
+  deploy-db-computed: # with s3 and computed release name
+    name: Deploy Database Computed
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
@@ -39,10 +39,33 @@ jobs:
       - if: contains(steps.deploy_db.outputs.* , '')
         run: |
           echo "Error! At least one output is empty. Verify outputs." && exit 1
+  deploy-db-manual: # without s3 , only pvc and manual release name
+    name: Deploy Database Explicit Release Name
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
 
+      - name: Deploy Database Manual Release Name
+        id: deploy_db
+        uses: ./
+        with:
+          oc_namespace: ${{ vars.oc_namespace }}
+          oc_token: ${{ secrets.oc_token }}
+          ref: ${{ github.ref }}
+          values_file: values.yml
+          force_cleanup: true
+          release_name: 'pg-action' # Explicit release name, the postgres cluster is suffixed with '-crunchy'
+      - run: |
+          echo "Outputs: ${{ toJSON(steps.deploy_db.outputs) }}"
+      
+      - if: contains(steps.deploy_db.outputs.* , '')
+        run: |
+          echo "Error! At least one output is empty. Verify outputs." && exit 1
   results:
     name: Results
-    needs: [deploy-db]
+    needs: [deploy-db-computed, deploy-db-manual]
     runs-on: ubuntu-24.04
     steps:
       - if: contains(needs.*.result, 'failure')||contains(needs.*.result, 'canceled')

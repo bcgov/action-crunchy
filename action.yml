@@ -64,7 +64,10 @@ inputs:
     description: 'Git ref to use; e.g. branch, tag, sha'
     default: 'main'
     required: false
-
+  release_name:
+    description: 'Release name; e.g. pg-qsos-crunchy, make sure it is unique in the namespace you are deploying to'
+    default: ''
+    required: false
 outputs:
   release:
     description: 'Release name'
@@ -82,7 +85,12 @@ runs:
         # Variables and Inputs
 
         # Release and cluster name; based on a hash of the repository name
-        RELEASE_NAME=pg-$(echo -n "${{github.event.repository.name}}" | md5sum | cut -c 1-8)
+        RELEASE_NAME=''
+        if [ -n "${{ inputs.release_name }}" ]; then
+          RELEASE_NAME="${{ inputs.release_name }}"
+        else
+          RELEASE_NAME=pg-$(echo -n "${{ github.event.repository.name }}" | md5sum | cut -c 1-8)
+        fi
         CLUSTER_NAME=${RELEASE_NAME}-crunchy
 
         # Process vars and send to GITHUB_ENV (local vars) and GITHUB_OUTPUT (outputs)
