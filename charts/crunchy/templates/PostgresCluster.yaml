@@ -257,7 +257,7 @@ spec:
   # Whether or not the PostgreSQL cluster should be stopped.
   # When this is true, workloads are scaled to zero and CronJobs are suspended.
   # Other resources, such as Services and Volumes, remain in place.
-  shutdown: true 
+  shutdown: true
   {{- end }}
   {{- if and .Values.crunchy.standby .Values.crunchy.standby.enabled}}
   # Whether or not the PostgreSQL cluster should be read-only. When this is
