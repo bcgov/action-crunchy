@@ -56,7 +56,7 @@ jobs:
           ref: ${{ github.ref }}
           values_file: values.yml
           force_cleanup: true
-          release_name: pg-action-crunchy
+          release_name: 'pg-action' # Explicit release name, the postgres cluster is suffixed with '-crunchy'
       - run: |
           echo "Outputs: ${{ toJSON(steps.deploy_db.outputs) }}"
       

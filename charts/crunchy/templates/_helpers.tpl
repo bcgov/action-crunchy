@@ -14,12 +14,8 @@ If release name contains chart name it will be used as a full name.
 {{- if .Values.crunchy.fullnameOverride }}
 {{- .Values.crunchy.fullnameOverride | trunc 63 | trimSuffix "-" }}
 {{- else }}
-{{- $name := default "crunchy" .Values.crunchy.nameOverride }}
-{{- if contains $name .Release.Name }}
-{{- .Release.Name | trunc 63 | trimSuffix "-" }}
-{{- else }}
+{{- $name := "crunchy" }}
 {{- printf "%s-%s" .Release.Name $name | trunc 63 | trimSuffix "-" }}
-{{- end }}
 {{- end }}
 {{- end }}
 
