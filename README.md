@@ -15,8 +15,8 @@ This GitHub Actions workflow automates the deployment and management of a Crunch
 
 Here's a breakdown of the main phases:
 
-### Generate Release Name
-
+### Generate Release Name 
+*   This step is <b><u>executed only</u></b> when input `release_name` optional parameter is not supplied, which is the default way.
 *   This initial step creates a unique identifier for the Crunchy database deployment.
 *   It takes the repository name and generates a short hash from it, prefixing it with `pg-`. This ensures deployments are named consistently but uniquely per repository, which is helpful in a shared OpenShift namespace.
 *   The generated name is then used in subsequent steps to reference the specific Crunchy cluster.
