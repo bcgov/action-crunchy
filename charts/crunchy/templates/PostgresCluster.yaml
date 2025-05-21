@@ -268,4 +268,5 @@ spec:
     # The name of the pgBackRest repository to follow for WAL files
     repoName: {{ .Values.crunchy.standby.repoName }}
   {{- end }}
+  openshift: true
 {{- end }}
