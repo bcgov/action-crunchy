@@ -175,7 +175,7 @@ runs:
         echo ./scripts/deploy_db.sh $PARAMS
         ./scripts/deploy_db.sh $PARAMS
 
-    - if: steps.triggers.outputs.triggered == 'true' && github.event_name == 'pull_request' && github.event.action != 'closed'
+    - if: github.event_name == 'pull_request' && github.event.action != 'closed'
       shell: bash
       run: |
         # Add user to Crunchy DB
