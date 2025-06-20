@@ -14,7 +14,8 @@ fi
 COMMAND="${1}"
 PR_NO="${2}"
 CLUSTER="${3}"
-
+MAX_USER_ADD_RETRIES=60
+USER_ADD_SLEEP_SECONDS=10
 # Check if postgres-crunchy exists or else exit
 if ! oc get PostgresCluster/"${CLUSTER}"; then
     echo "Cluster ${CLUSTER} does not exist. Exiting."
@@ -47,16 +48,16 @@ patch_postgres_cluster() {
 # Function to wait for a secret to be created
 wait_for_secret() {
     local secret_name="$1"
-    for i in {1..10}; do
+    for i in  $(seq 1 "$MAX_USER_ADD_RETRIES"); do
         if oc get secret "${secret_name}" -o jsonpath='{.metadata.name}' > /dev/null 2>&1; then
             echo "Secret created"
             return 0
         else
-            echo "Attempt $i: Secret not created, waiting for 30 seconds"
-            sleep 30
+            echo "Attempt $i: Secret not created, waiting for $USER_ADD_SLEEP_SECONDS seconds"
+            sleep $USER_ADD_SLEEP_SECONDS
         fi
     done
-    echo "Error: Secret ${secret_name} was not created after 10 attempts."
+    echo "Error: Secret ${secret_name} was not created after $MAX_USER_ADD_RETRIES attempts."
     return 1
 }
 

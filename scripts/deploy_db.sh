@@ -13,11 +13,13 @@ DIRECTORY="$1"
 VALUES_URL="$2"
 APP_NAME="$3"
 RELEASE_NAME="$4"
-S3_ACCESS_KEY="${5:-}"
-S3_SECRET_KEY="${6:-}"
-S3_BUCKET="${7:-}"
-S3_ENDPOINT="${8:-}"
-
+TRIGGERED="$5"
+S3_ACCESS_KEY="${6:-}"
+S3_SECRET_KEY="${7:-}"
+S3_BUCKET="${8:-}"
+S3_ENDPOINT="${9:-}"
+MAX_DB_READY_RETRIES=90
+DB_READY_SLEEP_SECONDS=10
 # Deploy Database
 echo 'Deploying crunchy helm chart'
 cd $DIRECTORY
@@ -31,6 +33,16 @@ sed -i "s/^name:.*/name: $APP_NAME/" Chart.yaml
 CHART_VERSION=$(yq -r .version Chart.yaml)
 # Package, update and deploy the chart
 helm package -u .
+
+# if it is not triggered TRIGGERED value is false, check if the chart is already deployed, if not deployed, deploy it else exit 0.
+if [ "${TRIGGERED:-false}" != "true" ]; then
+  if ! helm status "$RELEASE_NAME" > /dev/null 2>&1; then
+    echo "Chart DB $RELEASE_NAME not deployed, deploying now, ignoring triggers."
+  else
+    echo "Crunchy DB $RELEASE_NAME is already deployed, triggers did not fire, so not upgrading."
+    exit 0
+  fi
+fi
 
 # Build Helm set strings; add non-S3 options first if needed
 SET_STRINGS=""
@@ -49,18 +61,18 @@ else
   helm upgrade --install --wait "$RELEASE_NAME" --values ./values.yml ./$APP_NAME-$CHART_VERSION.tgz $SET_STRINGS
 fi
 # Verify successful db deployment; wait retry 10 times with 60 seconds interval
-for i in {1..10}; do
+for i in $(seq 1 "$MAX_DB_READY_RETRIES"); do
   # Check if the 'db' instance has at least 1 ready replica
   if oc get PostgresCluster/"$RELEASE_NAME"-crunchy -o json | jq -e '.status.instances[] | select(.name=="db") | .readyReplicas > 0' > /dev/null 2>&1; then
     echo "Crunchy DB instance 'db' is ready."
     READY=true
     exit 0
   else
-    echo "Attempt $i: Crunchy DB is not ready, waiting for 60 seconds"
-    sleep 60
+    echo "Attempt $i: Crunchy DB is not ready, waiting for $DB_READY_SLEEP_SECONDS seconds"
+    sleep $DB_READY_SLEEP_SECONDS
   fi
 done
 
 # Landing here means there's a problem
-echo "Crunchy DB did not become ready after 10 attempts."
+echo "Crunchy DB did not become ready after $MAX_DB_READY_RETRIES attempts."
 exit 1
