@@ -74,5 +74,5 @@ for i in $(seq 1 "$MAX_DB_READY_RETRIES"); do
 done
 
 # Landing here means there's a problem
-echo "Crunchy DB did not become ready after 20 attempts."
+echo "Crunchy DB did not become ready after $MAX_DB_READY_RETRIES attempts."
 exit 1

@@ -57,7 +57,7 @@ wait_for_secret() {
             sleep $USER_ADD_SLEEP_SECONDS
         fi
     done
-    echo "Error: Secret ${secret_name} was not created after 20 attempts."
+    echo "Error: Secret ${secret_name} was not created after $MAX_USER_ADD_RETRIES attempts."
     return 1
 }
 
