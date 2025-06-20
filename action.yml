@@ -148,7 +148,7 @@ runs:
       with:
         triggers: ${{ inputs.triggers }}
         diff_branch: ${{ inputs.diff_branch }}
-    # Alway install dont consider triggers here.
+    # Alway install don't consider triggers here.
     - uses: bcgov/action-oc-runner@10033668ef4374d9bb78149faa73e4ccda0e93dd # v1.2.3
       with:
         oc_namespace: "${{ inputs.oc_namespace }}"
