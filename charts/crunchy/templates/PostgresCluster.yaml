@@ -254,10 +254,10 @@ spec:
           client_tls_sslmode: {{ default "disable" .Values.crunchy.proxy.pgBouncer.clientTlsSslmode }}
           pool_mode: {{ default "session" .Values.crunchy.proxy.pgBouncer.poolMode }}
           max_db_connections: {{ .Values.crunchy.proxy.pgBouncer.maxConnections | quote }}
-          default_pool_size: {{ default "50" .Values.crunchy.proxy.pgBouncer.defaultPoolSize }}
-          min_pool_size: {{ default "20" .Values.crunchy.proxy.pgBouncer.minPoolSize }}
-          server_lifetime: {{ default "1200" .Values.crunchy.proxy.pgBouncer.serverLifetime }}
-          server_idle_timeout: {{ default "120" .Values.crunchy.proxy.pgBouncer.serverIdleTimeout }}
+          default_pool_size: {{ default "50" .Values.crunchy.proxy.pgBouncer.defaultPoolSize | quote }}
+          min_pool_size: {{ default "20" .Values.crunchy.proxy.pgBouncer.minPoolSize | quote}}
+          server_lifetime: {{ default "1200" .Values.crunchy.proxy.pgBouncer.serverLifetime | quote }}
+          server_idle_timeout: {{ default "120" .Values.crunchy.proxy.pgBouncer.serverIdleTimeout | quote }}
 
       {{ if .Values.crunchy.proxy.pgBouncer.image }}
       image: {{ .Values.crunchy.proxy.pgBouncer.image }}
