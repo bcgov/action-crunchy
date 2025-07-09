@@ -49,6 +49,11 @@ spec:
           requests:
             cpu: {{ .Values.crunchy.pgmonitor.exporter.requests.cpu }}
             memory: {{ .Values.crunchy.pgmonitor.exporter.requests.memory }}
+          {{- if .Values.crunchy.pgmonitor.exporter.limits }}
+          limits:
+            cpu: {{ .Values.crunchy.pgmonitor.exporter.limits.cpu }}
+            memory: {{ .Values.crunchy.pgmonitor.exporter.limits.memory }}
+          {{- end }}
 
   {{ end }}
 
@@ -63,6 +68,11 @@ spec:
         requests:
           cpu: {{ .Values.crunchy.instances.requests.cpu }}
           memory: {{ .Values.crunchy.instances.requests.memory }}
+        {{- if .Values.crunchy.instances.limits }}
+        limits:
+          cpu: {{ .Values.crunchy.instances.limits.cpu }}
+          memory: {{ .Values.crunchy.instances.limits.memory }}
+        {{- end }}
 
       sidecars:
         replicaCertCopy:
@@ -185,6 +195,11 @@ spec:
           requests:
             cpu: {{ .Values.crunchy.pgBackRest.repoHost.requests.cpu }}
             memory: {{ .Values.crunchy.pgBackRest.repoHost.requests.memory }}
+          {{- if .Values.crunchy.pgBackRest.repoHost.limits }}
+          limits:
+            cpu: {{ .Values.crunchy.pgBackRest.repoHost.limits.cpu }}
+            memory: {{ .Values.crunchy.pgBackRest.repoHost.limits.memory }}
+          {{- end }}
       sidecars:
         # this stuff is for the "pgbackrest" container in the "postgres-crunchy-ha" set of pods
         pgbackrest:
@@ -192,16 +207,31 @@ spec:
             requests:
               cpu: {{ .Values.crunchy.pgBackRest.sidecars.requests.cpu }}
               memory: {{ .Values.crunchy.pgBackRest.sidecars.requests.memory }}
+            {{- if .Values.crunchy.pgBackRest.sidecars.limits }}
+            limits:
+              cpu: {{ .Values.crunchy.pgBackRest.sidecars.limits.cpu }}
+              memory: {{ .Values.crunchy.pgBackRest.sidecars.limits.memory }}
+            {{- end }}
         pgbackrestConfig:
           resources:
             requests:
               cpu: {{ .Values.crunchy.pgBackRest.sidecars.requests.cpu }}
               memory: {{ .Values.crunchy.pgBackRest.sidecars.requests.memory }}
+            {{- if .Values.crunchy.pgBackRest.sidecars.limits }}
+            limits:
+              cpu: {{ .Values.crunchy.pgBackRest.sidecars.limits.cpu }}
+              memory: {{ .Values.crunchy.pgBackRest.sidecars.limits.memory }}
+            {{- end }}
       jobs:
         resources:
           requests:
             cpu: {{ .Values.crunchy.pgBackRest.jobs.requests.cpu }}
             memory: {{ .Values.crunchy.pgBackRest.jobs.requests.memory }}
+          {{- if .Values.crunchy.pgBackRest.jobs.limits }}
+          limits:
+            cpu: {{ .Values.crunchy.pgBackRest.jobs.limits.cpu }}
+            memory: {{ .Values.crunchy.pgBackRest.jobs.limits.memory }}
+          {{- end }}
   {{- end }}
   patroni:
     dynamicConfiguration:
@@ -224,6 +254,10 @@ spec:
           client_tls_sslmode: {{ default "disable" .Values.crunchy.proxy.pgBouncer.clientTlsSslmode }}
           pool_mode: {{ default "session" .Values.crunchy.proxy.pgBouncer.poolMode }}
           max_db_connections: {{ .Values.crunchy.proxy.pgBouncer.maxConnections | quote }}
+          default_pool_size: {{ default "50" .Values.crunchy.proxy.pgBouncer.defaultPoolSize }}
+          min_pool_size: {{ default "20" .Values.crunchy.proxy.pgBouncer.minPoolSize }}
+          server_lifetime: {{ default "1200" .Values.crunchy.proxy.pgBouncer.serverLifetime }}
+          server_idle_timeout: {{ default "120" .Values.crunchy.proxy.pgBouncer.serverIdleTimeout }}
 
       {{ if .Values.crunchy.proxy.pgBouncer.image }}
       image: {{ .Values.crunchy.proxy.pgBouncer.image }}
@@ -235,12 +269,22 @@ spec:
         requests:
           cpu: {{ .Values.crunchy.proxy.pgBouncer.requests.cpu }}
           memory: {{ .Values.crunchy.proxy.pgBouncer.requests.memory }}
+        {{- if .Values.crunchy.proxy.pgBouncer.limits }}
+        limits:
+          cpu: {{ .Values.crunchy.proxy.pgBouncer.limits.cpu }}
+          memory: {{ .Values.crunchy.proxy.pgBouncer.limits.memory }}
+        {{- end }}
       sidecars:
         pgbouncerConfig:
           resources:
             requests:
               cpu: {{ .Values.crunchy.proxy.pgBouncer.requests.cpu }}
               memory: {{ .Values.crunchy.proxy.pgBouncer.requests.memory }}
+            {{- if .Values.crunchy.proxy.pgBouncer.limits }}
+            limits:
+              cpu: {{ .Values.crunchy.proxy.pgBouncer.limits.cpu }}
+              memory: {{ .Values.crunchy.proxy.pgBouncer.limits.memory }}
+            {{- end }}
       affinity:
         podAntiAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:
