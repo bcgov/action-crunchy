@@ -142,6 +142,7 @@ The action accepts the following inputs:
 | `repository` | GitHub repository (e.g., org/repo) | bcgov/action-crunchy |
 | `ref` | Git ref to use (e.g., branch, tag, SHA) | main |
 | `release_name` | The release name to use, if provided overrides the computed pg-md5hash(1-8) of github repo name, if release_name is `pg-abc`,postgres cluster created will be `pg-abc-crunchy` | |
+| `diff_branch` | The branch to diff against (if not using default branch) Optional | |
 
 ### Outputs
 
