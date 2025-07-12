@@ -124,7 +124,6 @@ spec:
     - name: {{ .Values.global.config.dbName }}
       databases:
         - {{ .Values.global.config.dbName }}
-      options: "SUPERUSER CREATEDB CREATEROLE"
     - name: postgres
       databases:
         - postgres
