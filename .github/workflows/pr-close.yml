@@ -12,15 +12,17 @@ concurrency:
 permissions: {}
 
 jobs:
-  cleanup-db: # TODO move it off to another action later.
-    name: Remove DB User from Crunchy
+  remove-db:
+    name: Remove Crunchy
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
       - name: Cleanup Database
         id: cleanup-db
-        uses: ./
+        uses: bcgov/action-oc-runner@v1.2.3
         with:
           oc_namespace: ${{ vars.oc_namespace }}
           oc_server: ${{ vars.oc_server }}
           oc_token: ${{ secrets.oc_token }}
+          commands: |
+            helm uninstall pg-b80f1343 || true
+            helm uninstall pg-action || true
