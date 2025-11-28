@@ -161,7 +161,7 @@ runs:
         repository: ${{ github.repository }}                          # Always use the downstream
         ref: ${{ github.event.pull_request.base.ref || github.ref }}  # repository to run diffs!
 
-    - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+    - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6
       with:
         repository: ${{ inputs.repository }}
         ref: ${{ inputs.ref }}
