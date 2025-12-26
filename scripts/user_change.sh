@@ -60,6 +60,14 @@ wait_for_secret() {
     echo "Error: Secret ${secret_name} was not created after $MAX_USER_ADD_RETRIES attempts."
     return 1
 }
+# Function to retry a command a limited number of times
+# Arguments:
+#   $1 - max_attempts: maximum number of times to try running the command
+#   $2 - sleep_seconds: number of seconds to sleep between attempts
+#   $@ - the command (and its arguments) to execute
+# Returns:
+#   0 if the command succeeds within the allowed attempts, otherwise the
+#   exit code of the last failed attempt.
 retry() {
     local -r max_attempts="$1"; shift
     local -r sleep_seconds="$1"; shift
@@ -68,14 +76,14 @@ retry() {
     
     while true; do
         if "$@"; then
-        return 0
+            return 0
         fi
         
         local rc=$?
         
         if (( attempt >= max_attempts )); then
-        echo "All ${max_attempts} attempts failed (last exit:  ${rc})" >&2
-        return "$rc"
+            echo "All ${max_attempts} attempts failed (last exit:  ${rc})" >&2
+            return "$rc"
         fi
 
         echo "Attempt ${attempt}/${max_attempts} failed (exit ${rc}). Retrying in ${sleep_seconds}s..." >&2
