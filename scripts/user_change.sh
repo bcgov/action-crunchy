@@ -60,7 +60,37 @@ wait_for_secret() {
     echo "Error: Secret ${secret_name} was not created after $MAX_USER_ADD_RETRIES attempts."
     return 1
 }
+# Function to retry a command a limited number of times
+# Arguments:
+#   $1 - max_attempts: maximum number of times to try running the command
+#   $2 - sleep_seconds: number of seconds to sleep between attempts
+#   $@ - the command (and its arguments) to execute
+# Returns:
+#   0 if the command succeeds within the allowed attempts, otherwise the
+#   exit code of the last failed attempt.
+retry() {
+    local -r max_attempts="$1"; shift
+    local -r sleep_seconds="$1"; shift
 
+    local attempt=1
+    
+    while true; do
+        if "$@"; then
+            return 0
+        fi
+        
+        local rc=$?
+        
+        if (( attempt >= max_attempts )); then
+            echo "All ${max_attempts} attempts failed (last exit:  ${rc})" >&2
+            return "$rc"
+        fi
+
+        echo "Attempt ${attempt}/${max_attempts} failed (exit ${rc}). Retrying in ${sleep_seconds}s..." >&2
+        sleep "$sleep_seconds"
+        (( attempt++ ))
+    done
+}
 # Check if the user already exists
 USER_EXISTS=$(user_exists "app-${PR_NO}" "${CURRENT_USERS}")
 
@@ -101,24 +131,18 @@ elif [ "$COMMAND" == "remove" ]; then
     CRUNCHY_PG_PRIMARY_POD_NAME=$(oc get pods -l postgres-operator.crunchydata.com/cluster="${CLUSTER}",postgres-operator.crunchydata.com/role=master -o json | jq -r '.items[0].metadata.name')
     echo "${CRUNCHY_PG_PRIMARY_POD_NAME}"
 
-    # Terminate connections to the database
-    oc exec -it "${CRUNCHY_PG_PRIMARY_POD_NAME}" -- bash -c "psql -U postgres -d postgres -c \"SELECT pg_terminate_backend(pg_stat_activity.pid) FROM pg_stat_activity WHERE pg_stat_activity.datname = 'app-${PR_NO}' AND pid <> pg_backend_pid();\""
-    if [ $? -ne 0 ]; then
-        echo "Failed to terminate connections for database app-${PR_NO}" >&2
-        exit 1
-    fi
-    
-    # Drop the database
-    oc exec -it "${CRUNCHY_PG_PRIMARY_POD_NAME}" -- bash -c "psql -U postgres -d postgres -c \"DROP DATABASE IF EXISTS \\\"app-${PR_NO}\\\";\""
-    if [ $? -ne 0 ]; then
-        echo "Failed to drop database app-${PR_NO}" >&2
-        exit 1
-    fi
-    
-    # Drop the role
-    oc exec -it "${CRUNCHY_PG_PRIMARY_POD_NAME}" -- bash -c "psql -U postgres -d postgres -c \"DROP ROLE IF EXISTS \\\"app-${PR_NO}\\\";\""
-    if [ $? -ne 0 ]; then
-        echo "Failed to drop role app-${PR_NO}" >&2
+    if ! retry 5 2 oc exec "${CRUNCHY_PG_PRIMARY_POD_NAME}" -- bash -c "
+        psql -U postgres -d postgres <<-SQL
+            SELECT pg_terminate_backend(pg_stat_activity.pid)
+            FROM pg_stat_activity
+            WHERE pg_stat_activity.datname = 'app-${PR_NO}'
+            AND pid <> pg_backend_pid();
+            
+            DROP DATABASE IF EXISTS \"app-${PR_NO}\";
+            DROP ROLE IF EXISTS \"app-${PR_NO}\";
+        SQL
+        "; then
+        echo "Failed to cleanup database and role for app-${PR_NO}" >&2
         exit 1
     fi
 else
