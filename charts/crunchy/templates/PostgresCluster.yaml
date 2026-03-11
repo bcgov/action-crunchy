@@ -9,6 +9,9 @@ spec:
   metadata:
     labels: {{ include "crunchy-postgres.labels" . | nindent 6 }}
   imagePullPolicy: {{.Values.crunchy.imagePullPolicy}}
+  {{ if .Values.crunchy.image }}  
+  image: {{ .Values.crunchy.image }} # https://github.com/bcgov/crunchy-postgres?tab=readme-ov-file#current-compatible-images
+  {{ end }}
   postgresVersion: {{ .Values.crunchy.postgresVersion }}
   {{ if .Values.crunchy.postGISVersion }}
   postGISVersion: {{ .Values.crunchy.postGISVersion | quote }}
