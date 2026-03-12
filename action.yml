@@ -148,12 +148,12 @@ runs:
         done
 
     - id: triggers
-      uses: bcgov/action-diff-triggers@04bb0c4087cc06a8c060d23c3e660b7b15a323ac # v1.1.0
+      uses: bcgov/action-diff-triggers@4abfcb211f5816d654d1c5a417e5431a2c4a5379 # v1.1.1
       with:
         triggers: ${{ inputs.triggers }}
         diff_branch: ${{ inputs.diff_branch || github.event.repository.default_branch}}
     # Alway install don't consider triggers here.
-    - uses: bcgov/action-oc-runner@57a28c38359c93e43edf609d35b9a3f50a070131 # v1.4.0
+    - uses: bcgov/action-oc-runner@d2fc921aaa9d70684c186dbb7754e6985d44d86f # v1.4.1
       with:
         oc_namespace: "${{ inputs.oc_namespace }}"
         oc_token: "${{ inputs.oc_token }}"
