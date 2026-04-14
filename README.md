@@ -143,6 +143,7 @@ The action accepts the following inputs:
 | `ref` | Git ref to use (e.g., branch, tag, SHA) | main |
 | `release_name` | The release name to use, if provided overrides the computed pg-md5hash(1-8) of github repo name, if release_name is `pg-abc`,postgres cluster created will be `pg-abc-crunchy` | |
 | `diff_branch` | The branch to diff against (if not using default branch) Optional | |
+| `gh_token` | GitHub token for accessing private repository values files | `github.token` |
 
 ### Outputs
 
@@ -183,6 +184,7 @@ jobs:
           environment: ${{ inputs.environment }}
           values_file: charts/crunchy/values.yml
           triggers: ${{ inputs.triggers }}
+          gh_token: ${{ secrets.GITHUB_TOKEN }}  # Needed for private repositories; defaults to github.token
 ```
 
 ### Deployment with S3 Backups
@@ -215,6 +217,7 @@ jobs:
           environment: ${{ inputs.environment }}
           values_file: charts/crunchy/values.yml
           triggers: ${{ inputs.triggers }}
+          gh_token: ${{ secrets.GITHUB_TOKEN }}  # Needed for private repositories; defaults to github.token
           s3_access_key: ${{ secrets.S3_ACCESS_KEY }}
           s3_secret_key: ${{ secrets.S3_SECRET_KEY }}
           s3_bucket: ${{ secrets.S3_BUCKET }}

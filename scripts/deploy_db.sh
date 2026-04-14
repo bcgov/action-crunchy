@@ -25,7 +25,11 @@ echo 'Deploying crunchy helm chart'
 cd $DIRECTORY
 
 # Download values.yml file
-curl -o ./values.yml "$VALUES_URL"
+CURL_AUTH_OPTS=()
+if [ -n "${GH_TOKEN:-}" ]; then
+  CURL_AUTH_OPTS=(-H "Authorization: token ${GH_TOKEN}")
+fi
+curl "${CURL_AUTH_OPTS[@]}" -o ./values.yml "$VALUES_URL"
 echo "Downloaded values.yml (current directory: charts/crunchy)"
 
 # Set Helm app name
