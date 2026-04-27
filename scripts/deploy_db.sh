@@ -29,7 +29,7 @@ CURL_AUTH_OPTS=()
 if [ -n "${GH_TOKEN:-}" ]; then
   CURL_AUTH_OPTS=(-H "Authorization: token ${GH_TOKEN}")
 fi
-curl "${CURL_AUTH_OPTS[@]}" -o ./values.yml "$VALUES_URL"
+curl --fail --location --silent --show-error "${CURL_AUTH_OPTS[@]}" -o ./values.yml "$VALUES_URL"
 echo "Downloaded values.yml (current directory: charts/crunchy)"
 
 # Set Helm app name
