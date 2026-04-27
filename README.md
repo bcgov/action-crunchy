@@ -229,8 +229,8 @@ jobs:
 Action crunchy can be used by workflows in private repositories, but there is one consideration that may
 require configuration.  This action may access a values.yml file from the calling repository to provide 
 Crunchy's deployment parameters.  When the calling repository is private the values.yml file is restricted, 
-and requires authentication to access.  In that case a built-in Github authentication secret (github.token) 
-is used to access the values.yml file.  The github.token secret requires your workflow (or the job within 
+and requires authentication to access.  In that case a built-in GitHub authentication secret (`github.token`) 
+is used to access the values.yml file.  The `github.token` secret requires your workflow (or the job within 
 the workflow) to have "contents: read" permission.
 
 ```
