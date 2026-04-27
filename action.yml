@@ -192,17 +192,17 @@ runs:
         fi
 
         # Execute the deploy command
-        echo ./scripts/deploy_db.sh $PARAMS
-        ./scripts/deploy_db.sh $PARAMS
+        echo $GITHUB_ACTION_PATH/scripts/deploy_db.sh $PARAMS
+        $GITHUB_ACTION_PATH/scripts/deploy_db.sh $PARAMS
 
     - if: github.event_name == 'pull_request' && github.event.action != 'closed'
       shell: bash
       run: |
         # Add user to Crunchy DB
-        ./scripts/user_change.sh add "${{ github.event.number }}" "${CLUSTER_NAME}"
+        $GITHUB_ACTION_PATH/scripts/user_change.sh add "${{ github.event.number }}" "${CLUSTER_NAME}"
 
     - if: github.event.action == 'closed' || inputs.force_cleanup == 'true'
       shell: bash
       run: |
         # Remove PR specific user from Crunchy DB
-        ./scripts/user_change.sh remove "${{ github.event.number }}" "${CLUSTER_NAME}"
+        $GITHUB_ACTION_PATH/scripts/user_change.sh remove "${{ github.event.number }}" "${CLUSTER_NAME}"
