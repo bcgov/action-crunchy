@@ -144,6 +144,9 @@ runs:
         # Validate values.yml URL
         if ! curl "${CURL_AUTH_OPTS[@]}" --output /dev/null --silent --head --fail "${VALUES_URL}"; then
           echo "Error: The constructed values.yml URL is invalid or inaccessible: ${VALUES_URL}"
+          echo "Hint: If this is a private repository, please ensure that:"
+          echo "  1. The workflow permissions are set to 'contents: read'."
+          echo "  2. A valid 'github_token' is supplied if accessing a private file."
           exit 1
         fi
 
