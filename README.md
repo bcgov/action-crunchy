@@ -171,6 +171,8 @@ on:
 jobs:
   deploy-crunchy-db:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -204,6 +206,8 @@ on:
 jobs:
   deploy-crunchy-db:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -225,6 +229,9 @@ jobs:
 ```
 
 ## Use with private repositories
+
+> [!IMPORTANT]
+> **Private repositories will fail to validate and deploy** if the workflow is not configured with the correct permissions. By default, GitHub Actions runs may have highly restricted tokens that cannot read private repository files. You **must** define `permissions: { contents: read }` on your job or workflow to allow raw file access.
 
 Action crunchy can be used by workflows in private repositories, but there is one consideration that may
 require configuration.  This action may access a values.yml file from the calling repository to provide 
