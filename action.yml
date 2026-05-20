@@ -41,10 +41,6 @@ inputs:
     required: false
   s3_endpoint:
     description: 'S3 endpoint'
-    required: false
-  github_token:
-    description: Specify a GitHub token (built-in or PAT) to access private repository files; defaults to github.token
-    default: ${{ github.token }}
 
   # Usually a bad idea / not recommended
   force_cleanup:
@@ -55,8 +51,11 @@ inputs:
   directory:
     description: 'Crunchy Chart directory'
     default: 'charts/crunchy'
-    required: false
     validation: "^.+$"
+    required: false
+  github_token:
+    description: Specify token (GH or PAT), instead of inheriting one from the calling workflow
+    default: ${{ github.token }}
   repository:
     description: 'GitHub repository; e.g. org/repo'
     default: bcgov/action-crunchy
