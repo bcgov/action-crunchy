@@ -42,10 +42,9 @@ inputs:
   s3_endpoint:
     description: 'S3 endpoint'
     required: false
-
-  gh_token:
-    description: 'GitHub token for accessing private repository values files; defaults to github.token'
-    required: false
+  github_token:
+    description: Specify a GitHub token (built-in or PAT) to access private repository files; defaults to github.token
+    default: ${{ github.token }}
 
   # Usually a bad idea / not recommended
   force_cleanup:
@@ -116,7 +115,7 @@ runs:
     - shell: bash
       if: github.event.action != 'closed'
       env:
-        GH_TOKEN: ${{ inputs.gh_token || github.token }}
+        GITHUB_TOKEN: ${{ inputs.github_token }}
       run: |
         # Variables and Inputs (!= closed)
 
@@ -138,8 +137,8 @@ runs:
 
         # Build curl auth options if a token is provided (required for private repositories)
         CURL_AUTH_OPTS=()
-        if [ -n "${GH_TOKEN}" ]; then
-          CURL_AUTH_OPTS=(-H "Authorization: token ${GH_TOKEN}")
+        if [ -n "${GITHUB_TOKEN}" ]; then
+          CURL_AUTH_OPTS=(-H "Authorization: token ${GITHUB_TOKEN}")
         fi
 
         # Validate values.yml URL
@@ -181,7 +180,7 @@ runs:
     - if: github.event.action != 'closed'
       shell: bash
       env:
-        GH_TOKEN: ${{ inputs.gh_token || github.token }}
+        GITHUB_TOKEN: ${{ inputs.github_token }}
       run: |
         # Deploy the database
 

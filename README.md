@@ -143,7 +143,7 @@ The action accepts the following inputs:
 | `ref` | Git ref to use (e.g., branch, tag, SHA) | main |
 | `release_name` | The release name to use, if provided overrides the computed pg-md5hash(1-8) of github repo name, if release_name is `pg-abc`,postgres cluster created will be `pg-abc-crunchy` | |
 | `diff_branch` | The branch to diff against (if not using default branch) Optional | |
-| `gh_token` | GitHub token for accessing private repository values files | `github.token` |
+| `github_token` | (Optional) GitHub (built-in or PAT) token, otherwise inherited from workflow token | `github.token` |
 
 ### Outputs
 
@@ -184,7 +184,7 @@ jobs:
           environment: ${{ inputs.environment }}
           values_file: charts/crunchy/values.yml
           triggers: ${{ inputs.triggers }}
-          gh_token: ${{ secrets.GITHUB_TOKEN }}  # Needed for private repositories; defaults to github.token
+          # github_token: ${{ secrets.GITHUB_TOKEN }}  # Optional; needed for private repositories (defaults to github.token)
 ```
 
 ### Deployment with S3 Backups
@@ -217,7 +217,7 @@ jobs:
           environment: ${{ inputs.environment }}
           values_file: charts/crunchy/values.yml
           triggers: ${{ inputs.triggers }}
-          gh_token: ${{ secrets.GITHUB_TOKEN }}  # Needed for private repositories; defaults to github.token
+          # github_token: ${{ secrets.GITHUB_TOKEN }}  # Optional; specify a custom token/PAT if not using standard inheritance (defaults to github.token)
           s3_access_key: ${{ secrets.S3_ACCESS_KEY }}
           s3_secret_key: ${{ secrets.S3_SECRET_KEY }}
           s3_bucket: ${{ secrets.S3_BUCKET }}
@@ -229,13 +229,20 @@ jobs:
 Action crunchy can be used by workflows in private repositories, but there is one consideration that may
 require configuration.  This action may access a values.yml file from the calling repository to provide 
 Crunchy's deployment parameters.  When the calling repository is private the values.yml file is restricted, 
-and requires authentication to access.  In that case a built-in GitHub authentication secret (`github.token`) 
-is used to access the values.yml file.  The `github.token` secret requires your workflow (or the job within 
-the workflow) to have "contents: read" permission.
+and requires authentication to access.
 
-```
+By default, the action inherits the calling workflow's built-in GitHub authentication token (`github.token`) via the optional `github_token` input. For this to succeed in a private repository, your workflow (or the job within the workflow) must have `contents: read` permissions:
+
+```yaml
 permissions:
-  contents: read    
+  contents: read
+```
+
+If you need to access a different repository or require a custom Personal Access Token (PAT), you can pass it explicitly via the optional `github_token` input:
+
+```yaml
+with:
+  github_token: ${{ secrets.MY_CUSTOM_PAT }}
 ```
 
 ## Backup and Recovery
