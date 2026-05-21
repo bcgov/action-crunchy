@@ -130,23 +130,28 @@ runs:
           echo "S3 configuration not set. Disabling S3 backups."
         fi
 
-        # Construct values.yml API URL (ref_name = PR, ref_name = merge, default_branch = default)
-        BRANCH_OR_REF="${{ github.head_ref || github.ref_name || github.event.repository.default_branch }}"
-        VALUES_URL="https://api.github.com/repos/${{ github.repository }}/contents/${{ inputs.values_file }}?ref=${BRANCH_OR_REF}"
-
-        # Build curl auth options if a token is provided (required for private repositories)
-        CURL_AUTH_OPTS=()
-        if [ -n "${GITHUB_TOKEN}" ]; then
-          CURL_AUTH_OPTS=(-H "Authorization: token ${GITHUB_TOKEN}")
+        # Save a copy of the caller's values.yml to /tmp so we can preserve it when checkout wipes the workspace
+        if [ ! -f "${{ inputs.values_file }}" ]; then
+          echo "Error: The specified values_file does not exist at the path: ${{ inputs.values_file }}"
+          exit 1
         fi
-        CURL_AUTH_OPTS+=(-H "Accept: application/vnd.github.v3.raw")
+        cp "${{ inputs.values_file }}" /tmp/action-crunchy-values.yml
 
-        # Validate values.yml URL
+        # Set VALUES_URL to local file URI to bypass network/token authentication entirely
+        VALUES_URL="file:///tmp/action-crunchy-values.yml"
+
+        # Build curl options only if we are using a remote HTTP/S URL fallback
+        CURL_AUTH_OPTS=()
+        if [[ "${VALUES_URL}" =~ ^https?:// ]]; then
+          if [ -n "${GITHUB_TOKEN}" ]; then
+            CURL_AUTH_OPTS=(-H "Authorization: token ${GITHUB_TOKEN}")
+          fi
+          CURL_AUTH_OPTS+=(-H "Accept: application/vnd.github.v3.raw")
+        fi
+
+        # Validate values.yml exists and is accessible
         if ! curl "${CURL_AUTH_OPTS[@]}" --output /dev/null --silent --fail "${VALUES_URL}"; then
-          echo "Error: The constructed values.yml URL is invalid or inaccessible: ${VALUES_URL}"
-          echo "Hint: If this is a private repository, please ensure that:"
-          echo "  1. The workflow permissions are set to 'contents: read'."
-          echo "  2. A valid 'github_token' is supplied if accessing a private file."
+          echo "Error: The values_file is invalid or inaccessible at: ${VALUES_URL}"
           exit 1
         fi
 
@@ -166,6 +171,7 @@ runs:
       with:
         triggers: ${{ inputs.triggers }}
         ref: ${{ inputs.diff_branch || github.event.repository.default_branch}}
+
     # Alway install don't consider triggers here.
     - uses: bcgov/action-oc-runner@b1c55b8a8bd5f42b19f72e6ea7df6d6a6eda44a1 # v1.5.1
       with:

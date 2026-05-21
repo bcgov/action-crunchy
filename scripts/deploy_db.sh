@@ -26,10 +26,12 @@ cd $DIRECTORY
 
 # Download values.yml file
 CURL_AUTH_OPTS=()
-if [ -n "${GITHUB_TOKEN:-}" ]; then
-  CURL_AUTH_OPTS=(-H "Authorization: token ${GITHUB_TOKEN}")
+if [[ "${VALUES_URL}" =~ ^https?:// ]]; then
+  if [ -n "${GITHUB_TOKEN:-}" ]; then
+    CURL_AUTH_OPTS=(-H "Authorization: token ${GITHUB_TOKEN}")
+  fi
+  CURL_AUTH_OPTS+=(-H "Accept: application/vnd.github.v3.raw")
 fi
-CURL_AUTH_OPTS+=(-H "Accept: application/vnd.github.v3.raw")
 curl --fail --location --silent --show-error "${CURL_AUTH_OPTS[@]}" -o ./values.yml "$VALUES_URL"
 echo "Downloaded values.yml (current directory: charts/crunchy)"
 
