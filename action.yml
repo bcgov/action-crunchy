@@ -27,9 +27,32 @@ inputs:
     required: false
     validation: "^https?://.+:6443$"
   values_file:
-    description: 'Path to the values.yml file to use for the deployment'
-    required: true
-    validation: "^.+\\.(yml|yaml)$"
+    description: 'Path to the values.yml file to use for the deployment (optional)'
+    required: false
+  pvc_size:
+    description: 'Persistent Volume Claim storage size for PostgreSQL instances'
+    default: '210Mi'
+    required: false
+  storage_class:
+    description: 'Storage Class name for PostgreSQL instances'
+    default: 'netapp-block-standard'
+    required: false
+  postgres_version:
+    description: 'PostgreSQL major version'
+    default: '17'
+    required: false
+  replicas:
+    description: 'Number of PostgreSQL instance replicas'
+    default: '2'
+    required: false
+  cpu_request:
+    description: 'CPU request for PostgreSQL instances'
+    default: '50m'
+    required: false
+  memory_request:
+    description: 'Memory request for PostgreSQL instances'
+    default: '128Mi'
+    required: false
   s3_access_key:
     description: 'S3 access key'
     required: false
@@ -131,40 +154,49 @@ runs:
         fi
 
         # Save a copy of the caller's values.yml to /tmp so we can preserve it when checkout wipes the workspace
-        if [ ! -f "${{ inputs.values_file }}" ]; then
-          echo "Error: The specified values_file does not exist at the path: ${{ inputs.values_file }}"
-          exit 1
-        fi
-        cp "${{ inputs.values_file }}" /tmp/action-crunchy-values.yml
-
-        # Set VALUES_URL to local file URI to bypass network/token authentication entirely
-        VALUES_URL="file:///tmp/action-crunchy-values.yml"
-
-        # Build curl options only if we are using a remote HTTP/S URL fallback
-        CURL_AUTH_OPTS=()
-        if [[ "${VALUES_URL}" =~ ^https?:// ]]; then
-          if [ -n "${GITHUB_TOKEN}" ]; then
-            CURL_AUTH_OPTS=(-H "Authorization: token ${GITHUB_TOKEN}")
+        VALUES_URL=""
+        if [ -n "${{ inputs.values_file }}" ]; then
+          # Check if it is a remote URL
+          if [[ "${{ inputs.values_file }}" =~ ^https?:// ]]; then
+            VALUES_URL="${{ inputs.values_file }}"
+            
+            # Build curl auth options if a token is provided (required for private repositories)
+            CURL_AUTH_OPTS=()
+            if [ -n "${GITHUB_TOKEN}" ]; then
+              CURL_AUTH_OPTS=(-H "Authorization: token ${GITHUB_TOKEN}")
+            fi
+            CURL_AUTH_OPTS+=(-H "Accept: application/vnd.github.v3.raw")
+            
+            # Validate remote values.yml exists and is accessible
+            if ! curl "${CURL_AUTH_OPTS[@]}" --output /dev/null --silent --fail "${VALUES_URL}"; then
+              echo "Error: The remote values_file is invalid or inaccessible at: ${VALUES_URL}"
+              exit 1
+            fi
+          else
+            # Local file path
+            if [ ! -f "${{ inputs.values_file }}" ]; then
+              echo "Error: The specified values_file does not exist at the path: ${{ inputs.values_file }}"
+              exit 1
+            fi
+            
+            # Validate YAML integrity if yq is available
+            if command -v yq >/dev/null 2>&1; then
+              if ! yq eval . "${{ inputs.values_file }}" >/dev/null 2>&1; then
+                echo "Error: The specified values_file is not a valid YAML file: ${{ inputs.values_file }}"
+                exit 1
+              fi
+            fi
+            
+            cp "${{ inputs.values_file }}" /tmp/action-crunchy-values.yml
+            VALUES_URL="file:///tmp/action-crunchy-values.yml"
           fi
-          CURL_AUTH_OPTS+=(-H "Accept: application/vnd.github.v3.raw")
-        fi
-
-        # Validate values.yml exists and is accessible
-        if ! curl "${CURL_AUTH_OPTS[@]}" --output /dev/null --silent --fail "${VALUES_URL}"; then
-          echo "Error: The values_file is invalid or inaccessible at: ${VALUES_URL}"
-          exit 1
+        else
+          echo "No custom values_file provided. Using action's default values.yml."
         fi
 
         # Process vars and send to GITHUB_ENV
-        for var in S3_ENABLED VALUES_URL; do
-          if [ -n "${!var}" ]; then
-            echo "${var}=${!var}"
-            echo "${var}=${!var}" >> $GITHUB_ENV
-          else
-            echo "Warning: ${var} is not set."
-            exit 1
-          fi
-        done
+        echo "S3_ENABLED=${S3_ENABLED}" >> $GITHUB_ENV
+        echo "VALUES_URL=${VALUES_URL}" >> $GITHUB_ENV
 
     - id: triggers
       uses: bcgov/action-diff-triggers@a80e4b3cf77b7e05f84e74030e3bfa08b717a574 # v1.2.1
@@ -189,6 +221,12 @@ runs:
       shell: bash
       env:
         GITHUB_TOKEN: ${{ inputs.github_token }}
+        PVC_SIZE: ${{ inputs.pvc_size }}
+        STORAGE_CLASS: ${{ inputs.storage_class }}
+        POSTGRES_VERSION: ${{ inputs.postgres_version }}
+        REPLICAS: ${{ inputs.replicas }}
+        CPU_REQUEST: ${{ inputs.cpu_request }}
+        MEMORY_REQUEST: ${{ inputs.memory_request }}
       run: |
         # Deploy the database
 

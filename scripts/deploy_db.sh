@@ -24,16 +24,22 @@ DB_READY_SLEEP_SECONDS=10
 echo 'Deploying crunchy helm chart'
 cd $DIRECTORY
 
-# Download values.yml file
-CURL_AUTH_OPTS=()
-if [[ "${VALUES_URL}" =~ ^https?:// ]]; then
-  if [ -n "${GITHUB_TOKEN:-}" ]; then
-    CURL_AUTH_OPTS=(-H "Authorization: token ${GITHUB_TOKEN}")
+# Download or copy values.yml file
+if [ -n "${VALUES_URL:-}" ]; then
+  CURL_AUTH_OPTS=()
+  if [[ "${VALUES_URL}" =~ ^https?:// ]]; then
+    if [ -n "${GITHUB_TOKEN:-}" ]; then
+      CURL_AUTH_OPTS=(-H "Authorization: token ${GITHUB_TOKEN}")
+    fi
+    CURL_AUTH_OPTS+=(-H "Accept: application/vnd.github.v3.raw")
   fi
-  CURL_AUTH_OPTS+=(-H "Accept: application/vnd.github.v3.raw")
+  curl --fail --location --silent --show-error "${CURL_AUTH_OPTS[@]}" -o ./values.yml "$VALUES_URL"
+  echo "Downloaded values.yml (current directory: charts/crunchy)"
+else
+  # Copy default values.yml from action root (../../values.yml)
+  cp ../../values.yml ./values.yml
+  echo "Copied default values.yml from action root"
 fi
-curl --fail --location --silent --show-error "${CURL_AUTH_OPTS[@]}" -o ./values.yml "$VALUES_URL"
-echo "Downloaded values.yml (current directory: charts/crunchy)"
 
 # Set Helm app name
 sed -i "s/^name:.*/name: $APP_NAME/" Chart.yaml
@@ -53,6 +59,37 @@ fi
 
 # Build Helm set strings; add non-S3 options first if needed
 SET_STRINGS=""
+
+# Append custom database overrides from workflow inputs
+if [ -n "${PVC_SIZE:-}" ]; then
+  SET_STRINGS+=" --set-string crunchy.instances.dataVolumeClaimSpec.storage=${PVC_SIZE}"
+fi
+
+if [ -n "${STORAGE_CLASS:-}" ]; then
+  SET_STRINGS+=" --set-string crunchy.instances.dataVolumeClaimSpec.storageClassName=${STORAGE_CLASS}"
+fi
+
+if [ -n "${POSTGRES_VERSION:-}" ]; then
+  SET_STRINGS+=" --set crunchy.postgresVersion=${POSTGRES_VERSION}"
+  # If postgresVersion is customized to something other than 18 (default in values.yml),
+  # we nullify the image field so the operator pulls the correct image automatically.
+  if [ "$POSTGRES_VERSION" != "18" ]; then
+    SET_STRINGS+=" --set-string crunchy.image=\"\""
+  fi
+fi
+
+if [ -n "${REPLICAS:-}" ]; then
+  SET_STRINGS+=" --set crunchy.instances.replicas=${REPLICAS}"
+fi
+
+if [ -n "${CPU_REQUEST:-}" ]; then
+  SET_STRINGS+=" --set-string crunchy.instances.requests.cpu=${CPU_REQUEST}"
+fi
+
+if [ -n "${MEMORY_REQUEST:-}" ]; then
+  SET_STRINGS+=" --set-string crunchy.instances.requests.memory=${MEMORY_REQUEST}"
+fi
+
 if [ -n "$S3_ACCESS_KEY" ] && [ -n "$S3_SECRET_KEY" ] && [ -n "$S3_BUCKET" ] && [ -n "$S3_ENDPOINT" ]; then
   SET_STRINGS+=" --set crunchy.pgBackRest.s3.enabled=true \
     --set-string crunchy.pgBackRest.s3.accessKey=$S3_ACCESS_KEY \
