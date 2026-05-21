@@ -5,8 +5,9 @@ crunchy: # enable it for TEST and PROD, for PR based pipelines simply use single
   enabled: true
   postgresVersion: 18
   postGISVersion: "3.6"
-  imagePullPolicy: IfNotPresent
   image: "artifacts.developer.gov.bc.ca/bcgov-docker-local/crunchy-postgres-gis:ubi9-18.1-3.6-2547"
+  openshift: true
+  imagePullPolicy: IfNotPresent
   # enable below to start a new crunchy cluster after disaster from a backed-up location, crunchy will choose the best place to recover from.
   # follow https://access.crunchydata.com/documentation/postgres-operator/5.8/tutorials/backups-disaster-recovery/disaster-recovery
   # Clone From Backups Stored in S3 / GCS / Azure Blob Storage
@@ -32,9 +33,9 @@ crunchy: # enable it for TEST and PROD, for PR based pipelines simply use single
         prometheus.io/scrape: 'true'
         prometheus.io/port: '9187'
     dataVolumeClaimSpec:
-      storage: 210Mi
+      storage: 150Mi
       storageClassName: netapp-block-standard
-      walStorage: 255Mi
+      walStorage: 300Mi
 
     requests:
       cpu: 50m
@@ -47,7 +48,7 @@ crunchy: # enable it for TEST and PROD, for PR based pipelines simply use single
   pgBackRest:
     enabled: true
     backupPath: /backups/test/cluster/version # change it for PROD, create values-prod.yaml
-    clusterCounter: 2 # this is the number to identify what is the current counter for the cluster, each time it is cloned it should be incremented.
+    clusterCounter: 1 # this is the number to identify what is the current counter for the cluster, each time it is cloned it should be incremented.
     # If retention-full-type set to 'count' then the oldest backups will expire when the number of backups reach the number defined in retention
     # If retention-full-type set to 'time' then the number defined in retention will take that many days worth of full backups before expiration
     retentionFullType: count
@@ -58,13 +59,13 @@ crunchy: # enable it for TEST and PROD, for PR based pipelines simply use single
       endpoint: ~
       accessKey: ~
       secretKey: ~
-      fullBackupSchedule: 0 9 * * *
-      incrementalBackupSchedule: 0 0/5 * * * # every 5 hour incremental
+      fullBackupSchedule: ~
+      incrementalBackupSchedule: ~
     pvc:
       retention: 1 # one day hot active backup in pvc
       retentionFullType: count
       fullBackupSchedule: 0 8 * * *
-      incrementalBackupSchedule: 0 0,12 * * * # every 12 hour incremental
+      incrementalBackupSchedule: 0 0-7,9-23 * * * # every hour incremental
       volume:
         accessModes: "ReadWriteOnce"
         storage: 100Mi
@@ -90,8 +91,8 @@ crunchy: # enable it for TEST and PROD, for PR based pipelines simply use single
   patroni:
     postgresql:
       pg_hba:
-        - "host all all 0.0.0.0/0 md5"
-        - "host all all ::1/128 md5"
+        - "host all all 0.0.0.0/0 scram-sha-256"
+        - "host all all ::1/128 scram-sha-256"
       parameters:
         shared_buffers: 16MB # default is 128MB; a good tuned default for shared_buffers is 25% of the memory allocated to the pod
         wal_buffers: "64kB" # this can be set to -1 to automatically set as 1/32 of shared_buffers or 64kB, whichever is larger
@@ -106,11 +107,12 @@ crunchy: # enable it for TEST and PROD, for PR based pipelines simply use single
     enabled: true
     pgBouncer:
       image: # it's not necessary to specify an image as the images specified in the Crunchy Postgres Operator will be pulled by default
-      replicas: 1
+      replicas: 2
       requests:
         cpu: 5m
         memory: 32Mi
-      maxConnections: 10 # make sure less than postgres max connections
+      maxConnections: 100 # make sure less than postgres max connections
+      poolMode: 'transaction'
 
   # Postgres Cluster resource values:
   pgmonitor:
@@ -120,13 +122,8 @@ crunchy: # enable it for TEST and PROD, for PR based pipelines simply use single
       requests:
         cpu: 10m
         memory: 32Mi
+
   # Custom users section. This section defines database users and their associated configurations.
-  # Each user entry can include the following fields:
-  # - name: The username. Can use template interpolation (e.g., {{ .Values.global.config.dbName }}).
-  # - databases: A list of databases the user has access to. Can include template-interpolated values.
-  # - options: A string specifying user privileges (e.g., "SUPERUSER CREATEDB CREATEROLE"). Ensure the options are valid PostgreSQL roles.
-  # For more details, refer to the Crunchy Postgres Operator documentation: 
-  # https://access.crunchydata.com/documentation/postgres-operator/latest/tutorials/basic-setup/user-management
   users: 
     - name: '{{ .Values.global.config.dbName }}'
       databases:
@@ -144,4 +141,3 @@ crunchy: # enable it for TEST and PROD, for PR based pipelines simply use single
       databases:
         - '{{ .Values.global.config.dbName }}'
         - 'postgres'
-        
