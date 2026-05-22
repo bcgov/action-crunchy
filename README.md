@@ -124,12 +124,18 @@ The action accepts the following inputs:
 |-------|-------------|
 | `oc_namespace` | OpenShift namespace where the database will be deployed |
 | `oc_token` | OpenShift token for authentication |
-| `values_file` | Path to the values.yml file to use for the deployment |
 
 ### Optional Inputs
 
 | Input | Description | Default |
 |-------|-------------|---------|
+| `values_file` | Path to a custom values.yml file (if omitted, falls back to the gold-standard defaults) | |
+| `pvc_size` | Storage size for the PostgreSQL data volume claim | `210Mi` |
+| `storage_class` | Storage class name for the data volume | `netapp-block-standard` |
+| `postgres_version` | Major PostgreSQL version to deploy | `17` |
+| `replicas` | Number of instance replicas to deploy | `2` |
+| `cpu_request` | CPU request for the database pod | `50m` |
+| `memory_request` | Memory request for the database pod | `128Mi` |
 | `environment` | Environment name (omit for PRs) | |
 | `triggers` | Paths used to trigger a deployment (e.g., ./backend/ ./frontend/) | |
 | `oc_server` | OpenShift server URL | https://api.silver.devops.gov.bc.ca:6443 |
@@ -154,39 +160,33 @@ The action accepts the following inputs:
 
 ## Sample Usage in GitHub Actions
 
-### Basic Deployment with PVC Backup
+### Basic Zero-Config Deployment
 
-The following example demonstrates how to deploy a Crunchy PostgreSQL database with backup functionality using Persistent Volume Claims (PVC):
+Deploy a database instantly utilizing our gold-standard default parameters entirely offline with **zero configuration**:
 
 ```yaml
-name: Deploy Crunchy Database
-
-on:
-  pull_request:
-    types: [opened, synchronize, reopened]
-  push:
-    branches:
-      - main
-
-jobs:
-  deploy-crunchy-db:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      
-      - name: Deploy Crunchy
-        uses: bcgov/action-crunchy@v1.1.0
+      - name: Deploy Crunchy (Zero Config)
+        uses: bcgov/action-crunchy@v2
         id: deploy_crunchy
         with:
           oc_namespace: ${{ secrets.OC_NAMESPACE }}
           oc_token: ${{ secrets.OC_TOKEN }}
-          environment: ${{ inputs.environment }}
-          values_file: charts/crunchy/values.yml
-          triggers: ${{ inputs.triggers }}
-          # github_token: ${{ secrets.GITHUB_TOKEN }}  # Optional; needed for private repositories (defaults to github.token)
+```
+
+### Deployment with Sizing Overrides
+
+Customize database size, performance, and version dynamically using simple action inputs without maintaining a `values.yml` file:
+
+```yaml
+      - name: Deploy Crunchy (Sizing Overrides)
+        uses: bcgov/action-crunchy@v2
+        id: deploy_crunchy
+        with:
+          oc_namespace: ${{ secrets.OC_NAMESPACE }}
+          oc_token: ${{ secrets.OC_TOKEN }}
+          postgres_version: 17
+          replicas: 2
+          pvc_size: 5Gi
 ```
 
 ### Deployment with S3 Backups
