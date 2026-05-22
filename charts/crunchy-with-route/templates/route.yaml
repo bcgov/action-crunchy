@@ -1,0 +1,28 @@
+{{/*
+OpenShift Route for external database access.
+This creates a TLS passthrough route to the primary PostgreSQL service,
+allowing external clients to connect to the database over TLS.
+Clients must connect with SSL enabled (e.g., sslmode=require in the connection string).
+*/}}
+{{- if .Values.route.enabled }}
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: {{ template "crunchy-postgres.fullname" . }}
+  labels: {{ include "crunchy-postgres.labels" . | nindent 4 }}
+spec:
+  {{- if .Values.route.host }}
+  host: {{ .Values.route.host }}
+  {{- end }}
+  port:
+    targetPort: postgres
+  tls:
+    termination: passthrough
+    # None: HTTP connections are not accepted; only TLS connections are routed.
+    # Clients must connect using SSL (e.g., sslmode=require in the connection string).
+    insecureEdgeTerminationPolicy: None
+  to:
+    kind: Service
+    name: {{ template "crunchy-postgres.fullname" . }}-primary
+    weight: 100
+{{- end }}
