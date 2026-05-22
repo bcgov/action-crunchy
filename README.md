@@ -136,6 +136,8 @@ The action accepts the following inputs:
 | `replicas` | Number of instance replicas to deploy | `2` |
 | `cpu_request` | CPU request for the database pod | `50m` |
 | `memory_request` | Memory request for the database pod | `128Mi` |
+| `route_enabled` | Enable an OpenShift TLS passthrough Route for external database access | `false` |
+| `route_host` | Custom host name for the Route (if omitted, OpenShift auto-generates it) | `""` |
 | `environment` | Environment name (omit for PRs) | |
 | `triggers` | Paths used to trigger a deployment (e.g., ./backend/ ./frontend/) | |
 | `oc_server` | OpenShift server URL | https://api.silver.devops.gov.bc.ca:6443 |

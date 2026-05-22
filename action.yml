@@ -53,6 +53,14 @@ inputs:
     description: 'Memory request for PostgreSQL instances'
     default: '128Mi'
     required: false
+  route_enabled:
+    description: 'Enable an OpenShift TLS passthrough Route for external database access'
+    default: 'false'
+    required: false
+  route_host:
+    description: 'Custom host name for the Route (if omitted, OpenShift auto-generates it)'
+    default: ''
+    required: false
   s3_access_key:
     description: 'S3 access key'
     required: false
@@ -227,6 +235,8 @@ runs:
         REPLICAS: ${{ inputs.replicas }}
         CPU_REQUEST: ${{ inputs.cpu_request }}
         MEMORY_REQUEST: ${{ inputs.memory_request }}
+        ROUTE_ENABLED: ${{ inputs.route_enabled }}
+        ROUTE_HOST: ${{ inputs.route_host }}
       run: |
         # Deploy the database
 

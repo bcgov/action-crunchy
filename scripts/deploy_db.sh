@@ -90,6 +90,14 @@ if [ -n "${MEMORY_REQUEST:-}" ]; then
   SET_STRINGS+=" --set-string crunchy.instances.requests.memory=${MEMORY_REQUEST}"
 fi
 
+if [ -n "${ROUTE_ENABLED:-}" ]; then
+  SET_STRINGS+=" --set route.enabled=${ROUTE_ENABLED}"
+fi
+
+if [ -n "${ROUTE_HOST:-}" ]; then
+  SET_STRINGS+=" --set-string route.host=${ROUTE_HOST}"
+fi
+
 if [ -n "$S3_ACCESS_KEY" ] && [ -n "$S3_SECRET_KEY" ] && [ -n "$S3_BUCKET" ] && [ -n "$S3_ENDPOINT" ]; then
   SET_STRINGS+=" --set crunchy.pgBackRest.s3.enabled=true \
     --set-string crunchy.pgBackRest.s3.accessKey=$S3_ACCESS_KEY \
