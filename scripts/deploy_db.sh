@@ -57,36 +57,50 @@ if [ "${TRIGGERED:-false}" != "true" ]; then
   fi
 fi
 
-# Build Helm set strings; add non-S3 options first if needed
-SET_STRINGS=""
-
-# Append custom database overrides from workflow inputs
-if [ -n "${PVC_SIZE:-}" ]; then
-  SET_STRINGS+=" --set-string crunchy.instances.dataVolumeClaimSpec.storage=${PVC_SIZE}"
-fi
-
-if [ -n "${STORAGE_CLASS:-}" ]; then
-  SET_STRINGS+=" --set-string crunchy.instances.dataVolumeClaimSpec.storageClassName=${STORAGE_CLASS}"
-fi
-
-if [ -n "${POSTGRES_VERSION:-}" ]; then
-  SET_STRINGS+=" --set crunchy.postgresVersion=${POSTGRES_VERSION}"
-  # If postgresVersion is customized to something other than 18 (default in values.yml),
-  # we nullify the image field so the operator pulls the correct image automatically.
-  if [ "$POSTGRES_VERSION" != "18" ]; then
-    SET_STRINGS+=" --set-string crunchy.image=\"\""
+# Conflict check & Fail-fast Guardrail
+if [ -n "${VALUES_URL:-}" ]; then
+  if [ -n "${PVC_SIZE:-}" ] || [ -n "${STORAGE_CLASS:-}" ] || [ -n "${POSTGRES_VERSION:-}" ] || [ -n "${REPLICAS:-}" ] || [ -n "${CPU_REQUEST:-}" ] || [ -n "${MEMORY_REQUEST:-}" ]; then
+    echo "=========================================================================="
+    echo "❌ CONFIGURATION CONFLICT DETECTED!"
+    echo "=========================================================================="
+    echo "You provided a custom 'values_file' (${VALUES_URL}) but also specified one"
+    echo "or more database sizing/resource override inputs in your workflow:"
+    echo "  - pvc_size: '${PVC_SIZE:-}'"
+    echo "  - storage_class: '${STORAGE_CLASS:-}'"
+    echo "  - postgres_version: '${POSTGRES_VERSION:-}'"
+    echo "  - replicas: '${REPLICAS:-}'"
+    echo "  - cpu_request: '${CPU_REQUEST:-}'"
+    echo "  - memory_request: '${MEMORY_REQUEST:-}'"
+    echo ""
+    echo "👉 TO FIX THIS:"
+    echo "Since you have a custom values file, you must specify all database sizes"
+    echo "and resource requests directly inside your custom file."
+    echo "Please remove the conflicting sizing inputs from your GitHub workflow file."
+    echo "=========================================================================="
+    exit 1
   fi
 fi
 
-if [ -n "${REPLICAS:-}" ]; then
+# Build Helm set strings; add non-S3 options first if needed
+SET_STRINGS=""
+
+# If no custom values file is supplied, populate default sizing values and build set strings
+if [ -z "${VALUES_URL:-}" ]; then
+  PVC_SIZE="${PVC_SIZE:-210Mi}"
+  STORAGE_CLASS="${STORAGE_CLASS:-netapp-block-standard}"
+  POSTGRES_VERSION="${POSTGRES_VERSION:-17}"
+  REPLICAS="${REPLICAS:-2}"
+  CPU_REQUEST="${CPU_REQUEST:-50m}"
+  MEMORY_REQUEST="${MEMORY_REQUEST:-128Mi}"
+
+  SET_STRINGS+=" --set-string crunchy.instances.dataVolumeClaimSpec.storage=${PVC_SIZE}"
+  SET_STRINGS+=" --set-string crunchy.instances.dataVolumeClaimSpec.storageClassName=${STORAGE_CLASS}"
+  SET_STRINGS+=" --set crunchy.postgresVersion=${POSTGRES_VERSION}"
+  if [ "$POSTGRES_VERSION" != "18" ]; then
+    SET_STRINGS+=" --set-string crunchy.image=\"\""
+  fi
   SET_STRINGS+=" --set crunchy.instances.replicas=${REPLICAS}"
-fi
-
-if [ -n "${CPU_REQUEST:-}" ]; then
   SET_STRINGS+=" --set-string crunchy.instances.requests.cpu=${CPU_REQUEST}"
-fi
-
-if [ -n "${MEMORY_REQUEST:-}" ]; then
   SET_STRINGS+=" --set-string crunchy.instances.requests.memory=${MEMORY_REQUEST}"
 fi
 

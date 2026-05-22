@@ -31,27 +31,21 @@ inputs:
     required: false
   pvc_size:
     description: 'Persistent Volume Claim storage size for PostgreSQL instances'
-    default: '210Mi'
     required: false
   storage_class:
     description: 'Storage Class name for PostgreSQL instances'
-    default: 'netapp-block-standard'
     required: false
   postgres_version:
     description: 'PostgreSQL major version'
-    default: '17'
     required: false
   replicas:
     description: 'Number of PostgreSQL instance replicas'
-    default: '2'
     required: false
   cpu_request:
     description: 'CPU request for PostgreSQL instances'
-    default: '50m'
     required: false
   memory_request:
     description: 'Memory request for PostgreSQL instances'
-    default: '128Mi'
     required: false
   route_enabled:
     description: 'Enable an OpenShift TLS passthrough Route for external database access'
