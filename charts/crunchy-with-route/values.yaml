@@ -1,0 +1,176 @@
+# Crunchy PostgreSQL Cluster Configuration
+# This values file configures a highly available PostgreSQL cluster with:
+# - High availability with 2 replicas
+# - Automated backups to both PVC (repo1) and S3 (repo2)
+# - Connection pooling via PgBouncer
+# - PostGIS extension support
+
+fullnameOverride: bcgsdi-staging-geochem-crunchy
+dbName: bcgsdi-staging-geochem
+
+# Optional: Override the default Crunchy Postgres image
+# Leave empty to use the operator's default images
+crunchyImage: # it's not necessary to specify an image as the images specified in the Crunchy Postgres Operator will be pulled by default
+
+# PostgreSQL version and PostGIS extension version
+postgresVersion: 17
+postGISVersion: '3.4'
+imagePullPolicy: IfNotPresent
+
+# Enable OpenShift-specific configurations (security context constraints)
+openshift: true
+
+# Standby cluster configuration
+# Enable to bootstrap a standby (read-only) cluster from an existing cluster's backup
+# After bootstrapping, disable to promote the standby to a primary cluster
+standby:
+  enabled: false
+  # Repository to use for standby replication (repo1=PVC, repo2=S3)
+  repoName: repo2
+
+# PostgreSQL instance configuration
+instances:
+  name: ha # high availability
+  replicas: 2  # Number of PostgreSQL instances (primary + replicas)
+  dataVolumeClaimSpec:
+    storage: 300Mi
+    storageClassName: netapp-block-standard
+  # Resource requests for PostgreSQL containers
+  requests:
+    cpu: 1m
+    memory: 256Mi
+  # Sidecar container for replicating certificates between instances
+  replicaCertCopy:
+    requests:
+      cpu: 1m
+      memory: 32Mi
+
+# Bootstrap from backup configuration
+# When creating a NEW cluster, enable this to initialize it with data from an existing backup
+# This is useful for disaster recovery scenarios where the cluster needs to be recreated
+# For restoring data to an EXISTING cluster, use "restoreFromBackup" section instead
+bootstrapFromBackup:
+  enabled: false
+  fromRepoName: repo2  # Repository containing the backup (repo1=PVC, repo2=S3)
+  stanza: db
+
+# Restore from backup configuration
+# Use this to restore data into an EXISTING cluster from a previous backup
+# When enabled, the PostgresCluster will execute "pgbackrest restore" command
+# For creating a NEW cluster from backup, use "bootstrapFromBackup" section instead
+restoreFromBackup:
+  enabled: false
+  # Restore to a database at the given time (specify in format '2021-06-09 14:15:11-08').
+  # pgbackrest is finicky about the time specified.  It cannot be just any time, even 
+  # if regular backups have been captured by a scheduled process.  Best approach to 
+  # choose a targetTime is:
+  # 1. download backup.info from S3. 
+  # 2. Choose a backup listed in backup.info.  Note the "backup-archive-start" and 
+  # "backup-archive-stop" values.  These identify the write-ahead-logs (WALs) associated 
+  # with the backup.  Also note the "db-id".
+  # 3. From S3 download the [WAL].backup file corresponding to the stop WAL.  
+  # Open the [WALL].backup  file and note the backup STOP TIME. Copy that value here, except replacing UTC with +00.
+  targetTime: 2026-03-04 01:16:19+00 
+  fromRepoName: repo2 
+
+# pgBackRest backup configuration
+# Manages automated backups to both PVC (repo1) and S3 (repo2)
+pgBackRest:
+  image: # it's not necessary to specify an image as the images specified in the Crunchy Postgres Operator will be pulled by default
+  
+  # Backup retention policies
+  repo1Retention: "0"   # Keep 7 full backups on PVC
+  repo2Retention: "30"  # Keep 30 full backups on S3
+  
+  # Retention type: 'count' (number of backups) or 'time' (days to keep)
+  retentionFullType: count
+   
+  # Resource allocation for backup repository host
+  repoHost:
+    requests:
+      cpu: 10m
+      memory: 64Mi
+  
+  # Resource allocation for backup sidecars in PostgreSQL pods
+  sidecars:
+    requests:
+      cpu: 10m
+      memory: 64Mi
+  
+  # PVC backup configuration (repo1)  
+  pvc:
+    enabled: false
+    schedules:
+      full: 0 8 * * *  # Daily full backup at 8:00 AM
+      incremental: 0 0,4,12,16,20 * * *  # Incremental backups every 4 hours
+    volume:
+      accessModes: "ReadWriteOnce"
+      storage: 14Gi
+      storageClassName: netapp-file-standard    
+
+  # S3 backup configuration (repo2)
+  s3:
+    enabled: true
+    createS3Secret: true  # Automatically create the S3 credentials secret
+    secretName: s3-pgbackrest  # Name of the secret containing S3 credentials
+    path: /  # Path within the S3 bucket (must start with /)
+    uriStyle: path  # S3 URI style: 'host' or 'path'
+    bucket: ~  # S3 bucket name (set via --set during deployment)
+    endpoint: "nrs.objectstore.gov.bc.ca"  # S3 endpoint URL
+    region: "ca-central-1"  # S3 region
+    
+    # S3-specific backup schedules (offset by 1 hour from PVC schedules to avoid conflicts)
+    fullSchedule: "0 9 * * *"  # Daily full backup to S3 at 9:00 AM
+    incrementalSchedule: "0 1,5,13,17,21 * * *"  # Incremental backups to S3
+
+# Patroni configuration for PostgreSQL high availability
+patroni:
+  postgresql:
+    # Host-based authentication rules
+    pg_hba: "host all all 0.0.0.0/0 md5"
+    # PostgreSQL server parameters for performance tuning
+    parameters:
+      # Recommended: 25% of allocated memory for optimal performance
+      shared_buffers: 64MB # default is 128MB
+      # Set to -1 for automatic sizing (1/32 of shared_buffers or 64kB, whichever is larger)
+      wal_buffers: -1
+      min_wal_size: 32MB
+      max_wal_size: 128MB # default is 1GB
+      # Limit WAL retention to prevent disk space issues when replicas fall behind
+      max_slot_wal_keep_size: 512MB # default is -1, allowing unlimited wal growth
+
+# PgBouncer connection pooler configuration
+proxy:
+  pgBouncer:
+    image: # it's not necessary to specify an image as the images specified in the Crunchy Postgres Operator will be pulled by default
+    replicas: 2  # Number of PgBouncer instances for high availability
+    requests:
+      cpu: 1m
+      memory: 64Mi
+
+# Monitoring configuration using pgMonitor
+# Disabled by default - enable to export PostgreSQL metrics for Prometheus
+pgmonitor:
+  enabled: false
+  exporter:
+    image: # it's not necessary to specify an image as the images specified in the Crunchy Postgres Operator will be pulled by default
+    requests:
+      cpu: 1m
+      memory: 64Mi
+
+# External access route configuration
+# Creates an OpenShift Route for external database access to the primary PostgreSQL service.
+# Uses TLS passthrough termination - clients must connect with SSL enabled
+# (e.g., add '?sslmode=require' to the connection string).
+# An external route must have host name. If none is provided below, OpenShift will generate
+# a default hostname.  Alternatively, provide a hostname like:
+# bcgsdi-staging-geochem-crunchy-postgres-<namespace>.apps.<cluster>.devops.gov.bc.ca
+route:
+  enabled: true
+  host: 
+
+# Additional database users
+# The main database user (dbName) and postgres superuser are created automatically
+# Add additional users here as needed
+#users:
+#  - name: ycui

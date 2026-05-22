@@ -1,0 +1,289 @@
+apiVersion: postgres-operator.crunchydata.com/v1beta1
+kind: PostgresCluster
+metadata:
+  name: {{ template "crunchy-postgres.fullname" . }}
+  labels: {{ include "crunchy-postgres.labels" . | nindent 4 }}
+spec:
+  # Enable OpenShift-specific configurations
+  openshift: {{ .Values.openshift }}
+  metadata:
+    labels: {{ include "crunchy-postgres.labels" . | nindent 6 }}
+  {{ if .Values.crunchyImage }}  
+  image: {{ .Values.crunchyImage }}
+  {{ end }}
+  imagePullPolicy: {{ .Values.imagePullPolicy }}
+  postgresVersion: {{ .Values.postgresVersion }}
+  {{ if .Values.postGISVersion }}
+  postGISVersion: {{ .Values.postGISVersion | quote }}
+  {{ end }}
+
+
+  # Bootstrap a new cluster from an existing backup
+  # Used for disaster recovery or creating a new cluster from backup data
+  {{ if .Values.bootstrapFromBackup.enabled }}
+  dataSource:
+    pgbackrest:
+      configuration:
+        - secret:
+            name: {{ .Values.pgBackRest.s3.secretName }}
+      global:
+        repo2-path: {{ .Values.pgBackRest.s3.path }}
+        repo2-s3-uri-style: {{ .Values.pgBackRest.s3.uriStyle }}
+      repo:
+        name: {{ .Values.bootstrapFromBackup.fromRepoName }}
+        s3:
+          bucket: {{ .Values.pgBackRest.s3.bucket }}
+          endpoint: {{ .Values.pgBackRest.s3.endpoint }}
+          region: {{ .Values.pgBackRest.s3.region }}
+      stanza: {{ .Values.bootstrapFromBackup.stanza }}
+  {{ end }}
+
+
+  # Enable monitoring with pgmonitor exporter
+  # Exports PostgreSQL metrics for Prometheus
+  {{ if .Values.pgmonitor.enabled }}
+  monitoring:
+    pgmonitor:
+      # this stuff is for the "exporter" container in the "postgres-cluster-ha" set of pods
+      exporter:
+        {{ if .Values.pgmonitor.exporter.image}}
+        image: {{ .Values.pgmonitor.exporter.image}}
+        {{ end }}
+        resources:
+          requests:
+            cpu: {{ .Values.pgmonitor.exporter.requests.cpu }}
+            memory: {{ .Values.pgmonitor.exporter.requests.memory }}
+          {{ if .Values.pgmonitor.exporter.limits }}
+          limits:
+            cpu: {{ .Values.pgmonitor.exporter.limits.cpu }}
+            memory: {{ .Values.pgmonitor.exporter.limits.memory }}
+          {{ end }}
+  {{ end }}
+
+  # PostgreSQL instance configuration
+  # Defines the primary and replica instances
+  instances:
+    - name: {{ .Values.instances.name }}
+      replicas: {{ .Values.instances.replicas }}
+      resources:
+        requests:
+          cpu: {{ .Values.instances.requests.cpu }}
+          memory: {{ .Values.instances.requests.memory }}
+        {{ if .Values.instances.limits }}
+        limits:
+          cpu: {{ .Values.instances.limits.cpu }}
+          memory: {{ .Values.instances.limits.memory }}
+        {{ end }}
+      sidecars:
+        # Sidecar for certificate replication between primary and replicas
+        replicaCertCopy:
+          resources:
+            requests:
+              cpu: {{ .Values.instances.replicaCertCopy.requests.cpu }}
+              memory: {{ .Values.instances.replicaCertCopy.requests.memory }}
+            {{ if .Values.instances.replicaCertCopy.limits }}
+            limits:
+              cpu: {{ .Values.instances.replicaCertCopy.limits.cpu }}
+              memory: {{ .Values.instances.replicaCertCopy.limits.memory }}
+            {{ end }}
+      # Persistent volume claim for PostgreSQL data
+      dataVolumeClaimSpec:
+        accessModes:
+          - "ReadWriteOnce"
+        resources:
+          requests:
+            storage: {{ .Values.instances.dataVolumeClaimSpec.storage }}
+        storageClassName: {{ .Values.instances.dataVolumeClaimSpec.storageClassName }}
+      # Anti-affinity rules to spread instances across availability zones
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 1
+              podAffinityTerm:
+                topologyKey: topology.kubernetes.io/zone
+                labelSelector:
+                  matchLabels:
+                    postgres-operator.crunchydata.com/cluster:
+                      {{ template "crunchy-postgres.fullname" . }}
+                    postgres-operator.crunchydata.com/instance-set: {{ .Values.instances.name }}-ha
+  
+  # Database users configuration
+  # Creates the main database user, postgres superuser, and additional users
+  users:
+    - name: {{ .Values.dbName }}
+      databases:
+        - {{ .Values.dbName }}
+      options: "CREATEROLE"
+    # Postgres superuser with access to the main database
+    - name: postgres
+      databases:
+        - {{ .Values.dbName }}
+    # Additional users from values.yaml
+    {{- range .Values.users }}
+    - name: {{ .name }}
+      databases:
+        - {{ $.Values.dbName }}
+      options: {{ .options | default "CREATEROLE" }}
+    {{- end }}
+ 
+  # Backup configuration using pgBackRest
+  # Supports both PVC (repo1) and S3 (repo2) backup repositories
+  backups:
+    pgbackrest:
+      {{ if .Values.pgBackRest.image }}
+      image: {{ .Values.pgBackRest.image }}
+      {{ end }}
+      configuration:
+      - secret:
+          name: {{ .Values.pgBackRest.s3.secretName }}
+      global:
+        {{- if .Values.pgBackRest.pvc.enabled }}
+        # PVC backup retention (repo1)
+        repo1-retention-full: {{ .Values.pgBackRest.repo1Retention | quote }}
+        repo1-retention-full-type: {{ .Values.pgBackRest.retentionFullType }}
+        {{- end }}
+        {{- if .Values.pgBackRest.s3.enabled }}
+        # S3 backup retention (repo2)
+        repo2-retention-full: {{ .Values.pgBackRest.repo2Retention | quote }}
+        repo2-retention-full-type: {{ .Values.pgBackRest.retentionFullType }}
+        repo2-retention-archive: {{ .Values.pgBackRest.repo2Retention | quote }}
+        repo2-retention-archive-type: full
+        repo2-path: {{ .Values.pgBackRest.s3.path }}
+        repo2-s3-uri-style: {{ .Values.pgBackRest.s3.uriStyle }}
+        {{- end }}
+      # Manual backup configuration 
+      # These settings will be used anytime a manual backup is triggered.
+      manual:
+        repoName: repo2
+        options:
+          - --type=full
+      repos:
+        # PVC-based backup repository (repo1)
+        # Local backup copy stored on persistent volume
+        {{- if .Values.pgBackRest.pvc.enabled }}
+        - name: repo1
+          schedules:
+            full: {{ .Values.pgBackRest.pvc.schedules.full }}
+            incremental: {{ .Values.pgBackRest.pvc.schedules.incremental }}
+          volume:
+            volumeClaimSpec:
+              accessModes:
+                - {{ .Values.pgBackRest.pvc.volume.accessModes }}
+              resources:
+                requests:
+                  storage: {{ .Values.pgBackRest.pvc.volume.storage }}
+              storageClassName: {{ .Values.pgBackRest.pvc.volume.storageClassName }}
+        {{- end }}  
+        {{- if .Values.pgBackRest.s3.enabled }}
+        # S3-based backup repository (repo2)
+        - name: repo2
+          schedules:
+            full: {{ .Values.pgBackRest.s3.fullSchedule }}
+            incremental: {{ .Values.pgBackRest.s3.incrementalSchedule }}
+          s3:
+            bucket: {{ .Values.pgBackRest.s3.bucket }}
+            endpoint: {{ .Values.pgBackRest.s3.endpoint }}
+            region: {{ .Values.pgBackRest.s3.region }}
+        {{- end }}      
+      # Restore from backup configuration
+      # Enable this to restore an existing cluster from a previous backup
+      {{- if .Values.restoreFromBackup.enabled }}   
+      restore:
+        enabled: {{ .Values.restoreFromBackup.enabled }}
+        repoName: {{ .Values.restoreFromBackup.fromRepoName }}
+        options:          
+          - --type=time
+          - --target="{{ .Values.restoreFromBackup.targetTime }}"         
+      {{- end }}
+      # Resource configuration for the repo host pod
+      repoHost:
+        resources:
+          requests:
+            cpu: {{ .Values.pgBackRest.repoHost.requests.cpu }}
+            memory: {{ .Values.pgBackRest.repoHost.requests.memory }}
+          {{- if .Values.pgBackRest.repoHost.limits }}
+          limits:
+            cpu: {{ .Values.pgBackRest.repoHost.limits.cpu }}
+            memory: {{ .Values.pgBackRest.repoHost.limits.memory }}
+          {{- end }}
+      # Resource configuration for backup sidecars in instance pods
+      sidecars:
+        # pgBackRest sidecar in PostgreSQL instance pods
+        pgbackrest:
+          resources:
+            requests:
+              cpu: {{ .Values.pgBackRest.sidecars.requests.cpu }}
+              memory: {{ .Values.pgBackRest.sidecars.requests.memory }}
+            {{- if .Values.pgBackRest.sidecars.limits }}
+            limits:
+              cpu: {{ .Values.pgBackRest.sidecars.limits.cpu }}
+              memory: {{ .Values.pgBackRest.sidecars.limits.memory }}
+            {{- end }}
+        # pgBackRest config sidecar in PostgreSQL instance pods
+        pgbackrestConfig:
+          resources:
+            requests:
+              cpu: {{ .Values.pgBackRest.sidecars.requests.cpu }}
+              memory: {{ .Values.pgBackRest.sidecars.requests.memory }}
+            {{- if .Values.pgBackRest.sidecars.limits }}
+            limits:
+              cpu: {{ .Values.pgBackRest.sidecars.limits.cpu }}
+              memory: {{ .Values.pgBackRest.sidecars.limits.memory }}
+            {{- end }}
+  
+  # Standby cluster configuration
+  # Enable to create a read-only standby cluster that replicates from another cluster
+  standby:
+    enabled: {{ .Values.standby.enabled }}
+    repoName: {{ .Values.standby.repoName }}
+  
+  # Patroni configuration for high availability
+  # Controls PostgreSQL server parameters and connection settings
+  patroni:
+    dynamicConfiguration:
+      postgresql:
+        # Host-based authentication configuration
+        pg_hba:
+          - {{ .Values.patroni.postgresql.pg_hba}}
+        # PostgreSQL server parameters for performance tuning
+        parameters:
+          shared_buffers: {{ .Values.patroni.postgresql.parameters.shared_buffers }}
+          wal_buffers: {{ .Values.patroni.postgresql.parameters.wal_buffers }}
+          min_wal_size: {{ .Values.patroni.postgresql.parameters.min_wal_size }}
+          max_wal_size: {{ .Values.patroni.postgresql.parameters.max_wal_size }}
+          max_slot_wal_keep_size:  {{ .Values.patroni.postgresql.parameters.max_slot_wal_keep_size }}
+  
+  # PgBouncer connection pooler configuration
+  # Provides connection pooling for improved performance and scalability
+  proxy:
+    pgBouncer:
+      config:
+        global:
+          # Disable TLS for client connections (adjust based on security requirements)
+          client_tls_sslmode: disable
+      {{ if .Values.proxy.pgBouncer.image }}
+      image: {{ .Values.proxy.pgBouncer.image }}
+      {{ end }}
+      replicas: {{ .Values.proxy.pgBouncer.replicas }}
+      # Resource configuration for pgBouncer pods
+      resources:
+        requests:
+          cpu: {{ .Values.proxy.pgBouncer.requests.cpu }}
+          memory: {{ .Values.proxy.pgBouncer.requests.memory }}
+        {{ if .Values.proxy.pgBouncer.limits }}
+        limits:
+          cpu: {{ .Values.proxy.pgBouncer.limits.cpu }}
+          memory: {{ .Values.proxy.pgBouncer.limits.memory }}
+        {{ end }}
+      # Anti-affinity rules to spread pgBouncer pods across availability zones
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 1
+              podAffinityTerm:
+                topologyKey: topology.kubernetes.io/zone
+                labelSelector:
+                  matchLabels:
+                    postgres-operator.crunchydata.com/cluster:
+                      {{ template "crunchy-postgres.fullname" . }}
+                    postgres-operator.crunchydata.com/role: pgbouncer
