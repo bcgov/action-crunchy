@@ -86,9 +86,9 @@ SET_STRINGS=""
 
 # If no custom values file is supplied, populate default sizing values and build set strings
 if [ -z "${VALUES_URL:-}" ]; then
-  PVC_SIZE="${PVC_SIZE:-210Mi}"
+  PVC_SIZE="${PVC_SIZE:-150Mi}"
   STORAGE_CLASS="${STORAGE_CLASS:-netapp-block-standard}"
-  POSTGRES_VERSION="${POSTGRES_VERSION:-17}"
+  POSTGRES_VERSION="${POSTGRES_VERSION:-18}"
   REPLICAS="${REPLICAS:-2}"
   CPU_REQUEST="${CPU_REQUEST:-50m}"
   MEMORY_REQUEST="${MEMORY_REQUEST:-128Mi}"
