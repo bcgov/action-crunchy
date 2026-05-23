@@ -130,9 +130,9 @@ The action accepts the following inputs:
 | Input | Description | Default |
 |-------|-------------|---------|
 | `values_file` | Path to a custom values.yml file (if omitted, falls back to the gold-standard defaults) | |
-| `pvc_size` | Storage size for the PostgreSQL data volume claim | `210Mi` |
+| `pvc_size` | Storage size for the PostgreSQL data volume claim | `150Mi` |
 | `storage_class` | Storage class name for the data volume | `netapp-block-standard` |
-| `postgres_version` | Major PostgreSQL version to deploy | `17` |
+| `postgres_version` | Major PostgreSQL version to deploy | `18` |
 | `replicas` | Number of instance replicas to deploy | `2` |
 | `cpu_request` | CPU request for the database pod | `50m` |
 | `memory_request` | Memory request for the database pod | `128Mi` |

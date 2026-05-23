@@ -170,7 +170,7 @@ runs:
             CURL_AUTH_OPTS+=(-H "Accept: application/vnd.github.v3.raw")
             
             # Validate remote values.yml exists and is accessible
-            if ! curl "${CURL_AUTH_OPTS[@]}" --output /dev/null --silent --fail "${VALUES_URL}"; then
+            if ! curl "${CURL_AUTH_OPTS[@]}" --head --location --output /dev/null --silent --fail "${VALUES_URL}"; then
               echo "Error: The remote values_file is invalid or inaccessible at: ${VALUES_URL}"
               exit 1
             fi
@@ -234,15 +234,26 @@ runs:
       run: |
         # Deploy the database
 
-        # Check if S3 inputs are provided and construct the deploy_db.sh command accordingly
-        PARAMS="${{ inputs.directory }} ${VALUES_URL} ${{ github.event.repository.name }} ${RELEASE_NAME} ${{ steps.triggers.outputs.triggered}}"
+        # Build arguments array to prevent positional parameter shifting
+        ARGS=(
+          "${{ inputs.directory }}"
+          "${VALUES_URL}"
+          "${{ github.event.repository.name }}"
+          "${RELEASE_NAME}"
+          "${{ steps.triggers.outputs.triggered}}"
+        )
         if [ -n "${{ inputs.s3_access_key }}" ] && [ -n "${{ inputs.s3_secret_key }}" ] && [ -n "${{ inputs.s3_bucket }}" ] && [ -n "${{ inputs.s3_endpoint }}" ]; then
-          PARAMS+=" ${{ inputs.s3_access_key }} ${{ inputs.s3_secret_key }} ${{ inputs.s3_bucket }} ${{ inputs.s3_endpoint }}"
+          ARGS+=(
+            "${{ inputs.s3_access_key }}"
+            "${{ inputs.s3_secret_key }}"
+            "${{ inputs.s3_bucket }}"
+            "${{ inputs.s3_endpoint }}"
+          )
         fi
 
         # Execute the deploy command
-        echo $GITHUB_ACTION_PATH/scripts/deploy_db.sh $PARAMS
-        $GITHUB_ACTION_PATH/scripts/deploy_db.sh $PARAMS
+        echo $GITHUB_ACTION_PATH/scripts/deploy_db.sh "${ARGS[@]}"
+        $GITHUB_ACTION_PATH/scripts/deploy_db.sh "${ARGS[@]}"
 
     - if: github.event_name == 'pull_request' && github.event.action != 'closed'
       shell: bash

@@ -36,8 +36,8 @@ if [ -n "${VALUES_URL:-}" ]; then
   curl --fail --location --silent --show-error "${CURL_AUTH_OPTS[@]}" -o ./values.yml "$VALUES_URL"
   echo "Downloaded values.yml (current directory: charts/crunchy)"
 else
-  # Copy default values.yml from action root (../../values.yml)
-  cp ../../values.yml ./values.yml
+  # Copy default values.yml from action root relative to the script location
+  cp "$(dirname "$0")/../values.yml" ./values.yml
   echo "Copied default values.yml from action root"
 fi
 
