@@ -64,9 +64,10 @@ jobs:
         run: |
           echo "Error! At least one output is empty. Verify outputs." && exit 1
   results:
+    if: always()
     name: Results
     needs: [deploy-db-computed, deploy-db-manual]
     runs-on: ubuntu-24.04
     steps:
       - if: contains(needs.*.result, 'failure')||contains(needs.*.result, 'cancelled')
-        run: echo "At least one job has failed." && exit 1
+        run: echo "At least one job has failed or was cancelled." && exit 1
