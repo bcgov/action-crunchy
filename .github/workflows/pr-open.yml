@@ -63,6 +63,81 @@ jobs:
       - if: contains(steps.deploy_db.outputs.* , '')
         run: |
           echo "Error! At least one output is empty. Verify outputs." && exit 1
+
+  deploy-db-zero-config: # no values_file, no override inputs - uses bundled defaults
+    name: Deploy Database Zero Config
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          ref: ${{ github.ref }}
+
+      - name: Deploy Database (Zero Config)
+        id: deploy_db
+        uses: ./
+        with:
+          oc_namespace: ${{ vars.oc_namespace }}
+          oc_token: ${{ secrets.oc_token }}
+          ref: ${{ github.ref }}
+          release_name: 'pg-zeroconf'
+          force_cleanup: true
+      - run: |
+          echo "Outputs: ${{ toJSON(steps.deploy_db.outputs) }}"
+      - if: contains(steps.deploy_db.outputs.* , '')
+        run: |
+          echo "Error! At least one output is empty. Verify outputs." && exit 1
+
+  deploy-db-overrides: # no values_file, exercises sizing override inputs
+    name: Deploy Database Overrides
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          ref: ${{ github.ref }}
+
+      - name: Deploy Database (Overrides)
+        id: deploy_db
+        uses: ./
+        with:
+          oc_namespace: ${{ vars.oc_namespace }}
+          oc_token: ${{ secrets.oc_token }}
+          ref: ${{ github.ref }}
+          release_name: 'pg-overrides'
+          pvc_size: 200Mi
+          storage_class: netapp-block-standard
+          postgres_version: 17
+          replicas: 1
+          cpu_request: 50m
+          memory_request: 128Mi
+          force_cleanup: true
+      - run: |
+          echo "Outputs: ${{ toJSON(steps.deploy_db.outputs) }}"
+      - if: contains(steps.deploy_db.outputs.* , '')
+        run: |
+          echo "Error! At least one output is empty. Verify outputs." && exit 1
+
+  guardrail-conflict: # negative test: custom values_file + overrides must fail fast
+    name: Guardrail Conflict Check
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - uses: azure/setup-helm@b9e51907a09c216f16ebe8536097933489208112 # v4.3.0
+
+      - name: Verify deploy_db.sh fails when values_file and overrides both set
+        env:
+          PVC_SIZE: '200Mi'
+        run: |
+          set +e
+          ./scripts/deploy_db.sh charts/crunchy "file://${PWD}/values.yml" testapp pg-guardrail true
+          EXIT_CODE=$?
+          set -e
+          if [ "${EXIT_CODE}" -ne 1 ]; then
+            echo "Expected exit code 1 from guardrail, got ${EXIT_CODE}"
+            exit 1
+          fi
+          echo "Guardrail correctly rejected conflicting inputs."
+
   # ==========================================================================
   # WARNING: This job acts as the required merge gate for this workflow.
   # If you add a new job to this workflow, you MUST add its ID to the 'needs'
@@ -70,7 +145,7 @@ jobs:
   # ==========================================================================
   results:
     name: Results
-    needs: [deploy-db-computed, deploy-db-manual]
+    needs: [deploy-db-computed, deploy-db-manual, deploy-db-zero-config, deploy-db-overrides, guardrail-conflict]
     if: always()
     runs-on: ubuntu-24.04
     timeout-minutes: 1
