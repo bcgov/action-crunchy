@@ -96,8 +96,13 @@ if [ -z "${VALUES_URL:-}" ]; then
   SET_STRINGS+=" --set-string crunchy.instances.dataVolumeClaimSpec.storage=${PVC_SIZE}"
   SET_STRINGS+=" --set-string crunchy.instances.dataVolumeClaimSpec.storageClassName=${STORAGE_CLASS}"
   SET_STRINGS+=" --set crunchy.postgresVersion=${POSTGRES_VERSION}"
+  # When the requested version differs from the default baked into values.yml,
+  # null out the hardcoded image so the Crunchy Operator picks the correct
+  # default image for the requested PostgreSQL version. `--set ...=null`
+  # removes the field entirely; `--set-string ...=""` would set it to an empty
+  # string, which the operator treats as a literal (invalid) image reference.
   if [ "$POSTGRES_VERSION" != "18" ]; then
-    SET_STRINGS+=" --set-string crunchy.image=\"\""
+    SET_STRINGS+=" --set crunchy.image=null"
   fi
   SET_STRINGS+=" --set crunchy.instances.replicas=${REPLICAS}"
   SET_STRINGS+=" --set-string crunchy.instances.requests.cpu=${CPU_REQUEST}"
