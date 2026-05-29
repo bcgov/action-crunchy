@@ -11,9 +11,68 @@ concurrency:
 permissions: {}
 
 jobs:
-  deploy-db-computed: # with s3 and computed release name
-    name: Deploy Database Computed
+  # ---------------------------------------------------------------------------
+  # Layer 1 + 2: offline validation. Covers chart rendering, helper script
+  # logic, version lookup, guardrail, route/S3 toggles. No cluster, no helm
+  # upgrade. Runs in ~30s, parallel-safe across PRs.
+  # ---------------------------------------------------------------------------
+  validate:
+    name: Validate (lint + unit + render)
+    runs-on: ubuntu-24.04 # offline checks only
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - uses: azure/setup-helm@b9e51907a09c216f16ebe8536097933489208112 # v4.3.0
+
+      - name: Install bats
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y bats
+
+      - name: Unit tests (resolve_helm_args.sh)
+        run: bats tests/
+
+      - name: Helm lint
+        run: helm lint charts/crunchy --values values.yml
+
+      - name: Render chart with bundled values (default path)
+        run: |
+          helm template smoke charts/crunchy --values values.yml \
+            > /tmp/render-default.yaml
+          # PostgresCluster must always be rendered
+          grep -q "kind: PostgresCluster" /tmp/render-default.yaml
+          # Route is off by default
+          ! grep -q "kind: Route" /tmp/render-default.yaml
+
+      - name: Render chart with resolved overrides (PG17 + route)
+        env:
+          POSTGRES_VERSION: '17'
+          PVC_SIZE: '500Mi'
+          ROUTE_ENABLED: 'true'
+          ROUTE_HOST: 'pg.example.com'
+        run: |
+          # The helper drives --set args end-to-end the same way deploy_db.sh does.
+          # shellcheck disable=SC2046
+          helm template smoke charts/crunchy --values values.yml \
+            $(./scripts/resolve_helm_args.sh) > /tmp/render-overrides.yaml
+
+          echo "--- assertions on rendered output ---"
+          grep -q "kind: PostgresCluster" /tmp/render-overrides.yaml
+          grep -q "ubi9-17.7-3.6-2547" /tmp/render-overrides.yaml
+          grep -q "postGISVersion: \"3.6\"" /tmp/render-overrides.yaml
+          grep -q "storage: 500Mi" /tmp/render-overrides.yaml
+          grep -q "kind: Route" /tmp/render-overrides.yaml
+          grep -q "host: pg.example.com" /tmp/render-overrides.yaml
+
+  # ---------------------------------------------------------------------------
+  # Layer 3: single end-to-end cluster smoke test. Exercises the real action
+  # against OpenShift: values_file path, S3, computed release name, helm
+  # upgrade, readiness probe. One PostgresCluster per PR run.
+  # ---------------------------------------------------------------------------
+  deploy-db:
+    name: Deploy Database (smoke)
     runs-on: ubuntu-24.04
+    needs: validate
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
@@ -35,34 +94,11 @@ jobs:
 
       - run: |
           echo "Outputs: ${{ toJSON(steps.deploy_db.outputs) }}"
-      
-      - if: contains(steps.deploy_db.outputs.* , '')
-        run: |
-          echo "Error! At least one output is empty. Verify outputs." && exit 1
-  deploy-db-manual: # without s3 , only pvc and manual release name
-    name: Deploy Database Explicit Release Name
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-        with:
-          ref: ${{ github.ref }}
 
-      - name: Deploy Database Manual Release Name
-        id: deploy_db
-        uses: ./
-        with:
-          oc_namespace: ${{ vars.oc_namespace }}
-          oc_token: ${{ secrets.oc_token }}
-          ref: ${{ github.ref }}
-          values_file: values.yml
-          force_cleanup: true
-          release_name: 'pg-action' # Explicit release name, the postgres cluster is suffixed with '-crunchy'
-      - run: |
-          echo "Outputs: ${{ toJSON(steps.deploy_db.outputs) }}"
-      
       - if: contains(steps.deploy_db.outputs.* , '')
         run: |
           echo "Error! At least one output is empty. Verify outputs." && exit 1
+
   # ==========================================================================
   # WARNING: This job acts as the required merge gate for this workflow.
   # If you add a new job to this workflow, you MUST add its ID to the 'needs'
@@ -70,7 +106,7 @@ jobs:
   # ==========================================================================
   results:
     name: Results
-    needs: [deploy-db-computed, deploy-db-manual]
+    needs: [validate, deploy-db]
     if: always()
     runs-on: ubuntu-24.04
     timeout-minutes: 1
@@ -83,8 +119,8 @@ jobs:
       - name: Evaluate Overall Status
         if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
         run: |
-          echo "❌ Critical Check Failure: At least one required job has failed or was cancelled."
+          echo "Critical Check Failure: At least one required job has failed or was cancelled."
           exit 1
 
       - name: Success Message
-        run: echo "✅ All critical checks passed or were intentionally skipped!"
+        run: echo "All critical checks passed."

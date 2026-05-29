@@ -27,9 +27,34 @@ inputs:
     required: false
     validation: "^https?://.+:6443$"
   values_file:
-    description: 'Path to the values.yml file to use for the deployment'
-    required: true
-    validation: "^.+\\.(yml|yaml)$"
+    description: 'Path to the values.yml file to use for the deployment (optional)'
+    required: false
+  pvc_size:
+    description: 'Persistent Volume Claim storage size for PostgreSQL instances'
+    required: false
+  storage_class:
+    description: 'Storage Class name for PostgreSQL instances'
+    required: false
+  postgres_version:
+    description: 'PostgreSQL major version'
+    required: false
+  replicas:
+    description: 'Number of PostgreSQL instance replicas'
+    required: false
+  cpu_request:
+    description: 'CPU request for PostgreSQL instances'
+    required: false
+  memory_request:
+    description: 'Memory request for PostgreSQL instances'
+    required: false
+  route_enabled:
+    description: 'Enable an OpenShift TLS passthrough Route for external database access'
+    default: 'false'
+    required: false
+  route_host:
+    description: 'Custom host name for the Route (if omitted, OpenShift auto-generates it)'
+    default: ''
+    required: false
   s3_access_key:
     description: 'S3 access key'
     required: false
@@ -118,47 +143,49 @@ runs:
       run: |
         # Variables and Inputs (!= closed)
 
-        # Enable S3 backups if all required vars are set
-        s3_vars=("${{ inputs.s3_access_key }}" "${{ inputs.s3_secret_key }}" "${{ inputs.s3_bucket }}" "${{ inputs.s3_endpoint }}")
-        if [ "${#s3_vars[@]}" -eq 4 ]; then
-          echo "All S3 configuration variables are present. Enabling S3 backups."
-          S3_ENABLED=true
-        elif [ "$s3_vars_count" -gt 0 ]; then
-          echo "Warning: Some S3 configuration variables are set, but not all. Please ensure all S3 variables are configured."
-          exit 1
-        else
-          echo "S3 configuration not set. Disabling S3 backups."
-        fi
+        # Save a copy of the caller's values.yml to /tmp so we can preserve it when checkout wipes the workspace
+        VALUES_URL=""
+        if [ -n "${{ inputs.values_file }}" ]; then
+          # Check if it is a remote URL
+          if [[ "${{ inputs.values_file }}" =~ ^https?:// ]]; then
+            VALUES_URL="${{ inputs.values_file }}"
 
-        # Construct values.yml URL (ref_name = PR, ref_name = merge, default_branch = default)
-        BRANCH_OR_REF="${{ github.head_ref || github.ref_name || github.event.repository.default_branch }}"
-        VALUES_URL="https://raw.githubusercontent.com/${{ github.repository }}/${BRANCH_OR_REF}/${{ inputs.values_file }}"
+            # Build curl auth options if a token is provided (required for private repositories)
+            CURL_AUTH_OPTS=()
+            if [ -n "${GITHUB_TOKEN}" ]; then
+              CURL_AUTH_OPTS=(-H "Authorization: token ${GITHUB_TOKEN}")
+            fi
+            CURL_AUTH_OPTS+=(-H "Accept: application/vnd.github.v3.raw")
 
-        # Build curl auth options if a token is provided (required for private repositories)
-        CURL_AUTH_OPTS=()
-        if [ -n "${GITHUB_TOKEN}" ]; then
-          CURL_AUTH_OPTS=(-H "Authorization: token ${GITHUB_TOKEN}")
-        fi
-
-        # Validate values.yml URL
-        if ! curl "${CURL_AUTH_OPTS[@]}" --output /dev/null --silent --head --fail "${VALUES_URL}"; then
-          echo "Error: The constructed values.yml URL is invalid or inaccessible: ${VALUES_URL}"
-          echo "Hint: If this is a private repository, please ensure that:"
-          echo "  1. The workflow permissions are set to 'contents: read'."
-          echo "  2. A valid 'github_token' is supplied if accessing a private file."
-          exit 1
-        fi
-
-        # Process vars and send to GITHUB_ENV
-        for var in S3_ENABLED VALUES_URL; do
-          if [ -n "${!var}" ]; then
-            echo "${var}=${!var}"
-            echo "${var}=${!var}" >> $GITHUB_ENV
+            # Validate remote values.yml exists and is accessible
+            if ! curl "${CURL_AUTH_OPTS[@]}" --head --location --output /dev/null --silent --fail "${VALUES_URL}"; then
+              echo "Error: The remote values_file is invalid or inaccessible at: ${VALUES_URL}"
+              exit 1
+            fi
           else
-            echo "Warning: ${var} is not set."
-            exit 1
+            # Local file path
+            if [ ! -f "${{ inputs.values_file }}" ]; then
+              echo "Error: The specified values_file does not exist at the path: ${{ inputs.values_file }}"
+              exit 1
+            fi
+
+            # Validate YAML integrity if yq is available
+            if command -v yq >/dev/null 2>&1; then
+              if ! yq eval . "${{ inputs.values_file }}" >/dev/null 2>&1; then
+                echo "Error: The specified values_file is not a valid YAML file: ${{ inputs.values_file }}"
+                exit 1
+              fi
+            fi
+
+            cp "${{ inputs.values_file }}" /tmp/action-crunchy-values.yml
+            VALUES_URL="file:///tmp/action-crunchy-values.yml"
           fi
-        done
+        else
+          echo "No custom values_file provided. Using action's default values.yml."
+        fi
+
+        # Export to GITHUB_ENV for downstream steps
+        echo "VALUES_URL=${VALUES_URL}" >> $GITHUB_ENV
 
     - id: triggers
       uses: bcgov/action-diff-triggers@a80e4b3cf77b7e05f84e74030e3bfa08b717a574 # v1.2.1
@@ -183,18 +210,37 @@ runs:
       shell: bash
       env:
         GITHUB_TOKEN: ${{ inputs.github_token }}
+        PVC_SIZE: ${{ inputs.pvc_size }}
+        STORAGE_CLASS: ${{ inputs.storage_class }}
+        POSTGRES_VERSION: ${{ inputs.postgres_version }}
+        REPLICAS: ${{ inputs.replicas }}
+        CPU_REQUEST: ${{ inputs.cpu_request }}
+        MEMORY_REQUEST: ${{ inputs.memory_request }}
+        ROUTE_ENABLED: ${{ inputs.route_enabled }}
+        ROUTE_HOST: ${{ inputs.route_host }}
       run: |
         # Deploy the database
 
-        # Check if S3 inputs are provided and construct the deploy_db.sh command accordingly
-        PARAMS="${{ inputs.directory }} ${VALUES_URL} ${{ github.event.repository.name }} ${RELEASE_NAME} ${{ steps.triggers.outputs.triggered}}"
+        # Build arguments array to prevent positional parameter shifting
+        ARGS=(
+          "${{ inputs.directory }}"
+          "${VALUES_URL}"
+          "${{ github.event.repository.name }}"
+          "${RELEASE_NAME}"
+          "${{ steps.triggers.outputs.triggered}}"
+        )
         if [ -n "${{ inputs.s3_access_key }}" ] && [ -n "${{ inputs.s3_secret_key }}" ] && [ -n "${{ inputs.s3_bucket }}" ] && [ -n "${{ inputs.s3_endpoint }}" ]; then
-          PARAMS+=" ${{ inputs.s3_access_key }} ${{ inputs.s3_secret_key }} ${{ inputs.s3_bucket }} ${{ inputs.s3_endpoint }}"
+          ARGS+=(
+            "${{ inputs.s3_access_key }}"
+            "${{ inputs.s3_secret_key }}"
+            "${{ inputs.s3_bucket }}"
+            "${{ inputs.s3_endpoint }}"
+          )
         fi
 
         # Execute the deploy command
-        echo $GITHUB_ACTION_PATH/scripts/deploy_db.sh $PARAMS
-        $GITHUB_ACTION_PATH/scripts/deploy_db.sh $PARAMS
+        echo $GITHUB_ACTION_PATH/scripts/deploy_db.sh "${ARGS[@]}"
+        $GITHUB_ACTION_PATH/scripts/deploy_db.sh "${ARGS[@]}"
 
     - if: github.event_name == 'pull_request' && github.event.action != 'closed'
       shell: bash

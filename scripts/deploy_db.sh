@@ -3,7 +3,6 @@
 # Catch errors and unset variables
 set -euo pipefail
 
-# Remove S3_ENABLED and adjust logic to use S3 inputs if provided
 if [ "$#" -lt 4 ]; then
   echo "Usage: $0 <directory> <values_url> <app_name> <release_name> [s3_access_key] [s3_secret_key] [s3_bucket] [s3_endpoint]"
   exit 1
@@ -14,23 +13,41 @@ VALUES_URL="$2"
 APP_NAME="$3"
 RELEASE_NAME="$4"
 TRIGGERED="$5"
-S3_ACCESS_KEY="${6:-}"
-S3_SECRET_KEY="${7:-}"
-S3_BUCKET="${8:-}"
-S3_ENDPOINT="${9:-}"
+export S3_ACCESS_KEY="${6:-}"
+export S3_SECRET_KEY="${7:-}"
+export S3_BUCKET="${8:-}"
+export S3_ENDPOINT="${9:-}"
 MAX_DB_READY_RETRIES=90
 DB_READY_SLEEP_SECONDS=10
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+
+# Resolve and validate Helm args BEFORE any side effects (cd, packaging, etc).
+# resolve_helm_args.sh exits non-zero on guardrail/version validation failures,
+# so the conflict check fires up-front without touching the cluster.
+export VALUES_URL
+SET_STRINGS="$("${SCRIPT_DIR}/resolve_helm_args.sh")"
+
 # Deploy Database
 echo 'Deploying crunchy helm chart'
-cd $DIRECTORY
+cd "$DIRECTORY"
 
-# Download values.yml file
-CURL_AUTH_OPTS=()
-if [ -n "${GITHUB_TOKEN:-}" ]; then
-  CURL_AUTH_OPTS=(-H "Authorization: token ${GITHUB_TOKEN}")
+# Download or copy values.yml file
+if [ -n "${VALUES_URL:-}" ]; then
+  CURL_AUTH_OPTS=()
+  if [[ "${VALUES_URL}" =~ ^https?:// ]]; then
+    if [ -n "${GITHUB_TOKEN:-}" ]; then
+      CURL_AUTH_OPTS=(-H "Authorization: token ${GITHUB_TOKEN}")
+    fi
+    CURL_AUTH_OPTS+=(-H "Accept: application/vnd.github.v3.raw")
+  fi
+  curl --fail --location --silent --show-error "${CURL_AUTH_OPTS[@]}" -o ./values.yml "$VALUES_URL"
+  echo "Downloaded values.yml (current directory: charts/crunchy)"
+else
+  # Copy default values.yml from action root relative to the script location
+  cp "${SCRIPT_DIR}/../values.yml" ./values.yml
+  echo "Copied default values.yml from action root"
 fi
-curl --fail --location --silent --show-error "${CURL_AUTH_OPTS[@]}" -o ./values.yml "$VALUES_URL"
-echo "Downloaded values.yml (current directory: charts/crunchy)"
 
 # Set Helm app name
 sed -i "s/^name:.*/name: $APP_NAME/" Chart.yaml
@@ -48,15 +65,30 @@ if [ "${TRIGGERED:-false}" != "true" ]; then
   fi
 fi
 
-# Build Helm set strings; add non-S3 options first if needed
-SET_STRINGS=""
-if [ -n "$S3_ACCESS_KEY" ] && [ -n "$S3_SECRET_KEY" ] && [ -n "$S3_BUCKET" ] && [ -n "$S3_ENDPOINT" ]; then
-  SET_STRINGS+=" --set crunchy.pgBackRest.s3.enabled=true \
-    --set-string crunchy.pgBackRest.s3.accessKey=$S3_ACCESS_KEY \
-    --set-string crunchy.pgBackRest.s3.secretKey=$S3_SECRET_KEY \
-    --set-string crunchy.pgBackRest.s3.bucket=$S3_BUCKET \
-    --set-string crunchy.pgBackRest.s3.endpoint=$S3_ENDPOINT"
-fi
+# Self-heal a release that was left in a non-deployed state by a previous
+# timed-out run. `helm upgrade --install` refuses to operate when the most
+# recent release is in pending-install / pending-upgrade / failed, so we
+# uninstall it (PostgresCluster CR + helm secret) and let this run start
+# fresh. The PostgresCluster's PVCs persist independently and the operator
+# will rebind them on the next install.
+HELM_RELEASE_STATUS="$(helm status "$RELEASE_NAME" -o json 2>/dev/null | jq -r '.info.status // empty' 2>/dev/null || true)"
+echo "Helm release '${RELEASE_NAME}' current status: '${HELM_RELEASE_STATUS:-<none>}'"
+case "${HELM_RELEASE_STATUS}" in
+  deployed|"")
+    : # nothing to do; clean start or healthy upgrade
+    ;;
+  *)
+    # Any non-deployed status (pending-*, failed, uninstalling, unknown)
+    # blocks `helm upgrade --install`. Purge the helm storage secrets for
+    # this release so we can install fresh. The underlying PostgresCluster
+    # PVCs are owned by the operator independently and will be rebound.
+    echo "Release in '${HELM_RELEASE_STATUS}' state; purging helm history before reinstall."
+    helm uninstall "$RELEASE_NAME" --wait --timeout 2m 2>/dev/null || true
+    # If helm uninstall couldn't clear it (e.g. release stuck 'uninstalling'),
+    # delete the storage secrets directly. Pattern: sh.helm.release.v1.<name>.v<n>
+    oc delete secret -l "owner=helm,name=${RELEASE_NAME}" --ignore-not-found=true || true
+    ;;
+esac
 
 # Execute the Helm command
 if [ "${DEBUG_MODE:-false}" = "true" ]; then
