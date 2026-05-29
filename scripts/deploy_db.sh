@@ -65,6 +65,20 @@ if [ "${TRIGGERED:-false}" != "true" ]; then
   fi
 fi
 
+# Self-heal a release that was left in a non-deployed state by a previous
+# timed-out run. `helm upgrade --install` refuses to operate when the most
+# recent release is in pending-install / pending-upgrade / failed, so we
+# uninstall it (PostgresCluster CR + helm secret) and let this run start
+# fresh. The PostgresCluster's PVCs persist independently and the operator
+# will rebind them on the next install.
+HELM_RELEASE_STATUS="$(helm status "$RELEASE_NAME" -o json 2>/dev/null | jq -r '.info.status' 2>/dev/null || echo "")"
+case "${HELM_RELEASE_STATUS}" in
+  pending-install|pending-upgrade|pending-rollback|failed|unknown)
+    echo "Release ${RELEASE_NAME} is in '${HELM_RELEASE_STATUS}' state; uninstalling before reinstall."
+    helm uninstall "$RELEASE_NAME" --wait --timeout 2m || true
+    ;;
+esac
+
 # Execute the Helm command
 if [ "${DEBUG_MODE:-false}" = "true" ]; then
   helm upgrade --debug --dry-run --install --wait "$RELEASE_NAME" --values ./values.yml ./$APP_NAME-$CHART_VERSION.tgz $SET_STRINGS
