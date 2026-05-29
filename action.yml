@@ -143,32 +143,20 @@ runs:
       run: |
         # Variables and Inputs (!= closed)
 
-        # Enable S3 backups if all required vars are set
-        s3_vars=("${{ inputs.s3_access_key }}" "${{ inputs.s3_secret_key }}" "${{ inputs.s3_bucket }}" "${{ inputs.s3_endpoint }}")
-        if [ "${#s3_vars[@]}" -eq 4 ]; then
-          echo "All S3 configuration variables are present. Enabling S3 backups."
-          S3_ENABLED=true
-        elif [ "$s3_vars_count" -gt 0 ]; then
-          echo "Warning: Some S3 configuration variables are set, but not all. Please ensure all S3 variables are configured."
-          exit 1
-        else
-          echo "S3 configuration not set. Disabling S3 backups."
-        fi
-
         # Save a copy of the caller's values.yml to /tmp so we can preserve it when checkout wipes the workspace
         VALUES_URL=""
         if [ -n "${{ inputs.values_file }}" ]; then
           # Check if it is a remote URL
           if [[ "${{ inputs.values_file }}" =~ ^https?:// ]]; then
             VALUES_URL="${{ inputs.values_file }}"
-            
+
             # Build curl auth options if a token is provided (required for private repositories)
             CURL_AUTH_OPTS=()
             if [ -n "${GITHUB_TOKEN}" ]; then
               CURL_AUTH_OPTS=(-H "Authorization: token ${GITHUB_TOKEN}")
             fi
             CURL_AUTH_OPTS+=(-H "Accept: application/vnd.github.v3.raw")
-            
+
             # Validate remote values.yml exists and is accessible
             if ! curl "${CURL_AUTH_OPTS[@]}" --head --location --output /dev/null --silent --fail "${VALUES_URL}"; then
               echo "Error: The remote values_file is invalid or inaccessible at: ${VALUES_URL}"
@@ -180,7 +168,7 @@ runs:
               echo "Error: The specified values_file does not exist at the path: ${{ inputs.values_file }}"
               exit 1
             fi
-            
+
             # Validate YAML integrity if yq is available
             if command -v yq >/dev/null 2>&1; then
               if ! yq eval . "${{ inputs.values_file }}" >/dev/null 2>&1; then
@@ -188,7 +176,7 @@ runs:
                 exit 1
               fi
             fi
-            
+
             cp "${{ inputs.values_file }}" /tmp/action-crunchy-values.yml
             VALUES_URL="file:///tmp/action-crunchy-values.yml"
           fi
@@ -196,8 +184,7 @@ runs:
           echo "No custom values_file provided. Using action's default values.yml."
         fi
 
-        # Process vars and send to GITHUB_ENV
-        echo "S3_ENABLED=${S3_ENABLED}" >> $GITHUB_ENV
+        # Export to GITHUB_ENV for downstream steps
         echo "VALUES_URL=${VALUES_URL}" >> $GITHUB_ENV
 
     - id: triggers

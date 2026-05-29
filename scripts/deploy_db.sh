@@ -3,7 +3,6 @@
 # Catch errors and unset variables
 set -euo pipefail
 
-# Remove S3_ENABLED and adjust logic to use S3 inputs if provided
 if [ "$#" -lt 4 ]; then
   echo "Usage: $0 <directory> <values_url> <app_name> <release_name> [s3_access_key] [s3_secret_key] [s3_bucket] [s3_endpoint]"
   exit 1
@@ -124,8 +123,8 @@ if [ -z "${VALUES_URL:-}" ]; then
   SET_STRINGS+=" --set-string crunchy.instances.requests.memory=${MEMORY_REQUEST}"
 fi
 
-if [ -n "${ROUTE_ENABLED:-}" ]; then
-  SET_STRINGS+=" --set route.enabled=${ROUTE_ENABLED}"
+if [ "${ROUTE_ENABLED:-false}" = "true" ]; then
+  SET_STRINGS+=" --set route.enabled=true"
 fi
 
 if [ -n "${ROUTE_HOST:-}" ]; then
