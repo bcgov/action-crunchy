@@ -74,9 +74,19 @@ fi
 HELM_RELEASE_STATUS="$(helm status "$RELEASE_NAME" -o json 2>/dev/null | jq -r '.info.status // empty' 2>/dev/null || true)"
 echo "Helm release '${RELEASE_NAME}' current status: '${HELM_RELEASE_STATUS:-<none>}'"
 case "${HELM_RELEASE_STATUS}" in
-  pending-install|pending-upgrade|pending-rollback|failed|unknown)
-    echo "Uninstalling stuck release before reinstall."
-    helm uninstall "$RELEASE_NAME" --wait --timeout 2m || true
+  deployed|"")
+    : # nothing to do; clean start or healthy upgrade
+    ;;
+  *)
+    # Any non-deployed status (pending-*, failed, uninstalling, unknown)
+    # blocks `helm upgrade --install`. Purge the helm storage secrets for
+    # this release so we can install fresh. The underlying PostgresCluster
+    # PVCs are owned by the operator independently and will be rebound.
+    echo "Release in '${HELM_RELEASE_STATUS}' state; purging helm history before reinstall."
+    helm uninstall "$RELEASE_NAME" --wait --timeout 2m 2>/dev/null || true
+    # If helm uninstall couldn't clear it (e.g. release stuck 'uninstalling'),
+    # delete the storage secrets directly. Pattern: sh.helm.release.v1.<name>.v<n>
+    oc delete secret -l "owner=helm,name=${RELEASE_NAME}" --ignore-not-found=true || true
     ;;
 esac
 
