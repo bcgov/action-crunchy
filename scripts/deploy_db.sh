@@ -71,10 +71,11 @@ fi
 # uninstall it (PostgresCluster CR + helm secret) and let this run start
 # fresh. The PostgresCluster's PVCs persist independently and the operator
 # will rebind them on the next install.
-HELM_RELEASE_STATUS="$(helm status "$RELEASE_NAME" -o json 2>/dev/null | jq -r '.info.status' 2>/dev/null || echo "")"
+HELM_RELEASE_STATUS="$(helm status "$RELEASE_NAME" -o json 2>/dev/null | jq -r '.info.status // empty' 2>/dev/null || true)"
+echo "Helm release '${RELEASE_NAME}' current status: '${HELM_RELEASE_STATUS:-<none>}'"
 case "${HELM_RELEASE_STATUS}" in
   pending-install|pending-upgrade|pending-rollback|failed|unknown)
-    echo "Release ${RELEASE_NAME} is in '${HELM_RELEASE_STATUS}' state; uninstalling before reinstall."
+    echo "Uninstalling stuck release before reinstall."
     helm uninstall "$RELEASE_NAME" --wait --timeout 2m || true
     ;;
 esac
