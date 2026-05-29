@@ -96,14 +96,29 @@ if [ -z "${VALUES_URL:-}" ]; then
   SET_STRINGS+=" --set-string crunchy.instances.dataVolumeClaimSpec.storage=${PVC_SIZE}"
   SET_STRINGS+=" --set-string crunchy.instances.dataVolumeClaimSpec.storageClassName=${STORAGE_CLASS}"
   SET_STRINGS+=" --set crunchy.postgresVersion=${POSTGRES_VERSION}"
-  # When the requested version differs from the default baked into values.yml,
-  # null out the hardcoded image so the Crunchy Operator picks the correct
-  # default image for the requested PostgreSQL version. `--set ...=null`
-  # removes the field entirely; `--set-string ...=""` would set it to an empty
-  # string, which the operator treats as a literal (invalid) image reference.
-  if [ "$POSTGRES_VERSION" != "18" ]; then
-    SET_STRINGS+=" --set crunchy.image=null"
-  fi
+
+  # Resolve a known-good (image, postGISVersion) pair for the requested
+  # PostgreSQL major version. The Crunchy Operator (chart appVersion 5.8.5)
+  # only ships defaults for specific PG/PostGIS combinations, so we cannot
+  # simply null the image and hope it picks correctly. The list below is the
+  # ubi9 + GIS variant from:
+  # https://github.com/bcgov/crunchy-postgres#current-compatible-images
+  case "${POSTGRES_VERSION}" in
+    15) CRUNCHY_IMAGE_TAG="ubi9-15.15-3.3-2547"; CRUNCHY_POSTGIS_VERSION="3.3" ;;
+    16) CRUNCHY_IMAGE_TAG="ubi9-16.11-3.4-2547"; CRUNCHY_POSTGIS_VERSION="3.4" ;;
+    17) CRUNCHY_IMAGE_TAG="ubi9-17.7-3.6-2547";  CRUNCHY_POSTGIS_VERSION="3.6" ;;
+    18) CRUNCHY_IMAGE_TAG="ubi9-18.1-3.6-2547";  CRUNCHY_POSTGIS_VERSION="3.6" ;;
+    *)
+      echo "Error: Unsupported postgres_version '${POSTGRES_VERSION}'."
+      echo "Supported values (Crunchy Operator 5.8.5): 15, 16, 17, 18."
+      echo "If you need a combination outside this list, supply your own values_file"
+      echo "and set crunchy.image and crunchy.postGISVersion explicitly."
+      exit 1
+      ;;
+  esac
+  SET_STRINGS+=" --set-string crunchy.image=artifacts.developer.gov.bc.ca/bcgov-docker-local/crunchy-postgres-gis:${CRUNCHY_IMAGE_TAG}"
+  SET_STRINGS+=" --set-string crunchy.postGISVersion=${CRUNCHY_POSTGIS_VERSION}"
+
   SET_STRINGS+=" --set crunchy.instances.replicas=${REPLICAS}"
   SET_STRINGS+=" --set-string crunchy.instances.requests.cpu=${CPU_REQUEST}"
   SET_STRINGS+=" --set-string crunchy.instances.requests.memory=${MEMORY_REQUEST}"

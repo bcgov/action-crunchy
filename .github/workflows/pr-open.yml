@@ -105,12 +105,10 @@ jobs:
           release_name: 'pg-overrides'
           pvc_size: 200Mi
           storage_class: netapp-block-standard
-          # postgres_version intentionally matches the chart default (18). The
-          # version-switching branch in deploy_db.sh (which nulls crunchy.image)
-          # depends on the operator having a default image registered for the
-          # requested PG / PostGIS combination, which can't be reliably asserted
-          # in CI. Validate that branch manually before bumping the action.
-          postgres_version: 18
+          # Exercise the postgres_version lookup table in deploy_db.sh by
+          # requesting a non-default major version. The script resolves the
+          # matching image + postGISVersion from a known-good list.
+          postgres_version: 17
           replicas: 1
           cpu_request: 50m
           memory_request: 128Mi

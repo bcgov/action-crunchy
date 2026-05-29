@@ -132,7 +132,7 @@ The action accepts the following inputs:
 | `values_file` | Path to a custom values.yml file (if omitted, falls back to the gold-standard defaults) | |
 | `pvc_size` | Storage size for the PostgreSQL data volume claim | `150Mi` |
 | `storage_class` | Storage class name for the data volume | `netapp-block-standard` |
-| `postgres_version` | Major PostgreSQL version to deploy | `18` |
+| `postgres_version` | Major PostgreSQL version to deploy (see [Supported PostgreSQL Versions](#supported-postgresql-versions)) | `18` |
 | `replicas` | Number of instance replicas to deploy | `2` |
 | `cpu_request` | CPU request for the database pod | `50m` |
 | `memory_request` | Memory request for the database pod | `128Mi` |
@@ -159,6 +159,26 @@ The action accepts the following inputs:
 |--------|-------------|
 | `release` | The provided or generated release name |
 | `cluster` | The name of the deployed cluster |
+
+### Supported PostgreSQL Versions
+
+When you set `postgres_version` (and don't supply a custom `values_file`), the
+action resolves a known-good `image` and matching `postGISVersion` from the
+[bcgov/crunchy-postgres compatibility table](https://github.com/bcgov/crunchy-postgres#current-compatible-images)
+for Crunchy Operator 5.8.5. You don't need to think about image tags or PostGIS
+pairings — pick a major version and the right combination is applied.
+
+| `postgres_version` | Resolved image tag (ubi9 + PostGIS) | `postGISVersion` |
+|---|---|---|
+| `15` | `crunchy-postgres-gis:ubi9-15.15-3.3-2547` | `3.3` |
+| `16` | `crunchy-postgres-gis:ubi9-16.11-3.4-2547` | `3.4` |
+| `17` | `crunchy-postgres-gis:ubi9-17.7-3.6-2547` | `3.6` |
+| `18` (default) | `crunchy-postgres-gis:ubi9-18.1-3.6-2547` | `3.6` |
+
+Anything else fails fast with a helpful error. If you need an unsupported
+combination (a non-GIS image, ubi8, an older operator, a specific PostGIS minor,
+etc.), supply your own `values_file` and set `crunchy.image` /
+`crunchy.postGISVersion` explicitly.
 
 ## Sample Usage in GitHub Actions
 
