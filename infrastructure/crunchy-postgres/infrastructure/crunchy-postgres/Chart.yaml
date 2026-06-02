@@ -1,0 +1,12 @@
+apiVersion: v2
+name: crunchy
+description: A Helm chart for Kubernetes deployment.
+icon: https://www.nicepng.com/png/detail/521-5211827_bc-icon-british-columbia-government-logo.png
+type: application
+version: 5.5.1
+appVersion: "5.5.1"
+dependencies:
+  - name: backup-storage
+    version: "0.1.18"
+    repository: "https://bcgov.github.io/helm-charts"
+    condition: backup-storage.enabled
