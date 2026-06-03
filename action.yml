@@ -67,6 +67,12 @@ inputs:
   s3_endpoint:
     description: 'S3 endpoint'
 
+  self_heal_stuck_releases:
+    description: 'Purge stuck Helm releases (uninstalling, failed, etc.) before reinstall'
+    default: false
+    required: false
+    type: boolean
+
   # Usually a bad idea / not recommended
   force_cleanup:
     description: 'Force cleanup of the database'
@@ -218,6 +224,7 @@ runs:
         MEMORY_REQUEST: ${{ inputs.memory_request }}
         ROUTE_ENABLED: ${{ inputs.route_enabled }}
         ROUTE_HOST: ${{ inputs.route_host }}
+        SELF_HEAL_STUCK_RELEASES: ${{ inputs.self_heal_stuck_releases }}
       run: |
         # Deploy the database
 
@@ -237,6 +244,7 @@ runs:
             "${{ inputs.s3_endpoint }}"
           )
         fi
+        ARGS+=("${{ inputs.self_heal_stuck_releases }}")
 
         # Execute the deploy command
         echo $GITHUB_ACTION_PATH/scripts/deploy_db.sh "${ARGS[@]}"

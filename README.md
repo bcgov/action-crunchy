@@ -146,6 +146,7 @@ The action accepts the following inputs:
 | `s3_bucket` | S3 bucket for backups | |
 | `s3_endpoint` | S3 endpoint for backups | |
 | `force_cleanup` | Force cleanup of the database | false |
+| `self_heal_stuck_releases` | Purge stuck Helm releases (`uninstalling`, `failed`, etc.) before reinstall | false |
 | `directory` | Directory containing the Crunchy chart | charts/crunchy |
 | `repository` | GitHub repository (e.g., org/repo) | bcgov/action-crunchy |
 | `ref` | Git ref to use (e.g., branch, tag, SHA) | main |

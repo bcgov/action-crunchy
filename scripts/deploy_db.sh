@@ -4,8 +4,8 @@
 set -euo pipefail
 
 if [ "$#" -lt 4 ]; then
-  echo "Usage: $0 <directory> <values_url> <app_name> <release_name> [s3_access_key] [s3_secret_key] [s3_bucket] [s3_endpoint]"
-  exit 1
+   echo "Usage: $0 <directory> <values_url> <app_name> <release_name> [s3_access_key] [s3_secret_key] [s3_bucket] [s3_endpoint] [self_heal_stuck_releases]"
+   exit 1
 fi
 
 DIRECTORY="$1"
@@ -17,6 +17,7 @@ export S3_ACCESS_KEY="${6:-}"
 export S3_SECRET_KEY="${7:-}"
 export S3_BUCKET="${8:-}"
 export S3_ENDPOINT="${9:-}"
+export SELF_HEAL_STUCK_RELEASES="${10:-false}"
 MAX_DB_READY_RETRIES=90
 DB_READY_SLEEP_SECONDS=10
 
@@ -69,26 +70,32 @@ fi
 # timed-out run. `helm upgrade --install` refuses to operate when the most
 # recent release is in pending-install / pending-upgrade / failed, so we
 # uninstall it (PostgresCluster CR + helm secret) and let this run start
-# fresh. The PostgresCluster's PVCs persist independently and the operator
-# will rebind them on the next install.
-HELM_RELEASE_STATUS="$(helm status "$RELEASE_NAME" -o json 2>/dev/null | jq -r '.info.status // empty' 2>/dev/null || true)"
-echo "Helm release '${RELEASE_NAME}' current status: '${HELM_RELEASE_STATUS:-<none>}'"
-case "${HELM_RELEASE_STATUS}" in
-  deployed|"")
-    : # nothing to do; clean start or healthy upgrade
-    ;;
-  *)
-    # Any non-deployed status (pending-*, failed, uninstalling, unknown)
-    # blocks `helm upgrade --install`. Purge the helm storage secrets for
-    # this release so we can install fresh. The underlying PostgresCluster
-    # PVCs are owned by the operator independently and will be rebound.
-    echo "Release in '${HELM_RELEASE_STATUS}' state; purging helm history before reinstall."
-    helm uninstall "$RELEASE_NAME" --wait --timeout 2m 2>/dev/null || true
-    # If helm uninstall couldn't clear it (e.g. release stuck 'uninstalling'),
-    # delete the storage secrets directly. Pattern: sh.helm.release.v1.<name>.v<n>
-    oc delete secret -l "owner=helm,name=${RELEASE_NAME}" --ignore-not-found=true || true
-    ;;
-esac
+# fresh. When `self_heal_stuck_releases` is true, we purge stuck releases
+# before reinstalling. PVC behavior depends on operator ownership.
+if [ "${SELF_HEAL_STUCK_RELEASES:-false}" = "true" ]; then
+  HELM_RELEASE_STATUS="$(helm status "$RELEASE_NAME" -o json 2>/dev/null | jq -r '.info.status // empty' 2>/dev/null || true)"
+  echo "Helm release '${RELEASE_NAME}' current status: '${HELM_RELEASE_STATUS:-<none>}'"
+  case "${HELM_RELEASE_STATUS}" in
+    deployed|"")
+      : # nothing to do; clean start or healthy upgrade
+      ;;
+    *)
+      # Any non-deployed status (pending-*, failed, uninstalling, unknown)
+      # blocks `helm upgrade --install`. Purge the helm storage secrets for
+      # this release so we can install fresh. The underlying PostgresCluster
+      # PVCs are owned by the operator independently and will be rebound.
+      echo "Release in '${HELM_RELEASE_STATUS}' state; purging helm history before reinstall."
+      helm uninstall "$RELEASE_NAME" --wait --timeout 2m 2>/dev/null || true
+      # If helm uninstall couldn't clear it (e.g. release stuck 'uninstalling'),
+      # delete the storage secrets directly. Pattern: sh.helm.release.v1.<name>.v<n>
+      oc delete secret -l "owner=helm,name=${RELEASE_NAME}" --ignore-not-found=true || true
+      # Also clean up the PostgresCluster CR if it still exists; next helm install
+      # may fail with "already exists" if we only purge helm secrets.
+      oc delete postgrescluster.postgres-operator.crunchydata.com/${RELEASE_NAME}-crunchy \
+        --ignore-not-found=true --wait=true 2>/dev/null || true
+      ;;
+  esac
+fi
 
 # Execute the Helm command
 if [ "${DEBUG_MODE:-false}" = "true" ]; then
