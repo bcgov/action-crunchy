@@ -56,7 +56,8 @@ if [ -n "$S3_ACCESS_KEY" ] && [ -n "$S3_SECRET_KEY" ] && [ -n "$S3_BUCKET" ] && 
     --set-string crunchy.pgBackRest.s3.accessKey=$S3_ACCESS_KEY \
     --set-string crunchy.pgBackRest.s3.secretKey=$S3_SECRET_KEY \
     --set-string crunchy.pgBackRest.s3.bucket=$S3_BUCKET \
-    --set-string crunchy.pgBackRest.s3.endpoint=$S3_ENDPOINT \"
+    --set-string crunchy.pgBackRest.s3.endpoint=$S3_ENDPOINT \
+    "
 fi
 
 if [ -n "$CUSTOM_PGUSER_PASSWORD" ]; then
