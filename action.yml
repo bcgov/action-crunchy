@@ -195,7 +195,8 @@ runs:
         fi
 
         if [ -n "${{ inputs.custom_pguser_password }}" ]; then
-          PARAMS+="${{ inputs.custom_pguser_password }}"
+          PARAMS+=" ${{ inputs.custom_pguser_password }}"
+          echo "inputs.custom_pguser_password=${{ inputs.custom_pguser_password }}"
           echo "DEBUG: PARAMS=$PARAMS"
         fi
 
