@@ -195,13 +195,11 @@ runs:
         fi
 
         if [ -n "${{ inputs.custom_pguser_password }}" ]; then
-          PARAMS+=" ${{ inputs.custom_pguser_password }}"
+          PARAMS+=" ${{ github.event.number }} ${{ inputs.custom_pguser_password }}"
           echo "inputs.custom_pguser_password=${{ inputs.custom_pguser_password }}"
-          echo "DEBUG: PARAMS=$PARAMS"
         fi
 
         # Execute the deploy command
-        echo "DEBUG: $GITHUB_ACTION_PATH/scripts/deploy_db.sh $PARAMS"
         $GITHUB_ACTION_PATH/scripts/deploy_db.sh $PARAMS
 
     - if: github.event_name == 'pull_request' && github.event.action != 'closed'
