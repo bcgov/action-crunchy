@@ -62,7 +62,7 @@ if [ -n "$S3_ACCESS_KEY" ] && [ -n "$S3_SECRET_KEY" ] && [ -n "$S3_BUCKET" ] && 
 fi
 
 if [ -n "$CUSTOM_PGUSER_PASSWORD" ]; then
-  SET_STRINGS+=" --set-string crunchy.global.config.dbName=app-$PR_NO \
+  SET_STRINGS+=" --set-string global.config.dbName=app-$PR_NO \
     --set-string crunchy.pgUser.customPassword=$CUSTOM_PGUSER_PASSWORD"
 fi
 
