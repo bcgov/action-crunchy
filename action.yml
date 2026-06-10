@@ -199,6 +199,7 @@ runs:
         fi
 
         # Execute the deploy command
+        echo $GITHUB_ACTION_PATH/scripts/deploy_db.sh $PARAMS
         $GITHUB_ACTION_PATH/scripts/deploy_db.sh $PARAMS
 
     - if: github.event_name == 'pull_request' && github.event.action != 'closed'
