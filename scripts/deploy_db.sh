@@ -62,8 +62,8 @@ if [ -n "$S3_ACCESS_KEY" ] && [ -n "$S3_SECRET_KEY" ] && [ -n "$S3_BUCKET" ] && 
 fi
 
 if [ -n "$CUSTOM_PGUSER_PASSWORD" ]; then
-  SET_STRINGS+=" --set crunchy.global.config.dbName=app-$PR_NO \
-    --set crunchy.pgUser.customPassword=$CUSTOM_PGUSER_PASSWORD"
+  SET_STRINGS+=" --set-string crunchy.global.config.dbName=app-$PR_NO \
+    --set-string crunchy.pgUser.customPassword=$CUSTOM_PGUSER_PASSWORD"
 fi
 
 
@@ -71,6 +71,7 @@ fi
 if [ "${DEBUG_MODE:-false}" = "true" ]; then
   helm upgrade --debug --dry-run --install --wait "$RELEASE_NAME" --values ./values.yml ./$APP_NAME-$CHART_VERSION.tgz $SET_STRINGS
 else
+  helm upgrade --debug --dry-run --install --wait "$RELEASE_NAME" --values ./values.yml ./$APP_NAME-$CHART_VERSION.tgz $SET_STRINGS
   helm upgrade --install --wait "$RELEASE_NAME" --values ./values.yml ./$APP_NAME-$CHART_VERSION.tgz $SET_STRINGS
 fi
 # Verify successful db deployment; wait retry 10 times with 60 seconds interval
