@@ -164,7 +164,7 @@ runs:
       uses: bcgov/action-diff-triggers@a80e4b3cf77b7e05f84e74030e3bfa08b717a574 # v1.2.1
       with:
         triggers: ${{ inputs.triggers }}
-        ref: ${{ inputs.diff_branch || github.event.repository.default_branch}}
+        ref: ${{ inputs.diff_branch }} 
     # Alway install don't consider triggers here.
     - uses: bcgov/action-oc-runner@09b5eeae15bdbc7f7a21b406ee2c66a1d5819f8c # v1.6.0
       with:
