@@ -1,6 +1,7 @@
 # This is a temporary cronjob that needs to run in GOLD DR only for the standby clusters due these logs not being rotated
 # See https://moti-imb.atlassian.net/browse/DBC22-3706 for more detail
 
+{{- if .Values.pgbackrestLogCleanup }}
 {{- if .Values.pgbackrestLogCleanup.enabled }}
 apiVersion: batch/v1
 kind: CronJob
@@ -38,4 +39,5 @@ spec:
           restartPolicy: Never
   successfulJobsHistoryLimit: 3
   failedJobsHistoryLimit: 3
+{{- end }}
 {{- end }}
