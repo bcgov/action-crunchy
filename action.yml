@@ -41,6 +41,8 @@ inputs:
     required: false
   s3_endpoint:
     description: 'S3 endpoint'
+  custom_pguser_password:
+    description: 'Inject custom password for pgUser entries.  Useful for DR'
 
   # Usually a bad idea / not recommended
   force_cleanup:
@@ -190,6 +192,10 @@ runs:
         PARAMS="${{ inputs.directory }} ${VALUES_URL} ${{ github.event.repository.name }} ${RELEASE_NAME} ${{ steps.triggers.outputs.triggered}}"
         if [ -n "${{ inputs.s3_access_key }}" ] && [ -n "${{ inputs.s3_secret_key }}" ] && [ -n "${{ inputs.s3_bucket }}" ] && [ -n "${{ inputs.s3_endpoint }}" ]; then
           PARAMS+=" ${{ inputs.s3_access_key }} ${{ inputs.s3_secret_key }} ${{ inputs.s3_bucket }} ${{ inputs.s3_endpoint }}"
+        fi
+
+        if [ -n "${{ inputs.custom_pguser_password }}" ]; then
+          PARAMS+=" ${{ github.event.number }} ${{ inputs.custom_pguser_password }}"
         fi
 
         # Execute the deploy command

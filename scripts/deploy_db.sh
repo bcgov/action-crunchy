@@ -18,6 +18,8 @@ S3_ACCESS_KEY="${6:-}"
 S3_SECRET_KEY="${7:-}"
 S3_BUCKET="${8:-}"
 S3_ENDPOINT="${9:-}"
+PR_NO="${10:-}"
+CUSTOM_PGUSER_PASSWORD="${11:-}"
 MAX_DB_READY_RETRIES=90
 DB_READY_SLEEP_SECONDS=10
 # Deploy Database
@@ -55,8 +57,15 @@ if [ -n "$S3_ACCESS_KEY" ] && [ -n "$S3_SECRET_KEY" ] && [ -n "$S3_BUCKET" ] && 
     --set-string crunchy.pgBackRest.s3.accessKey=$S3_ACCESS_KEY \
     --set-string crunchy.pgBackRest.s3.secretKey=$S3_SECRET_KEY \
     --set-string crunchy.pgBackRest.s3.bucket=$S3_BUCKET \
-    --set-string crunchy.pgBackRest.s3.endpoint=$S3_ENDPOINT"
+    --set-string crunchy.pgBackRest.s3.endpoint=$S3_ENDPOINT \
+    "
 fi
+
+if [ -n "$CUSTOM_PGUSER_PASSWORD" ]; then
+  SET_STRINGS+=" --set-string global.config.dbName=app-$PR_NO \
+    --set-string crunchy.pgUser.customPassword=$CUSTOM_PGUSER_PASSWORD"
+fi
+
 
 # Execute the Helm command
 if [ "${DEBUG_MODE:-false}" = "true" ]; then
