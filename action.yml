@@ -85,6 +85,11 @@ outputs:
 runs:
   using: "composite"
   steps:
+    - name: Action moved
+      shell: bash
+      run: |
+        echo "::warning title=Action moved::This Action has moved to bcgov/actions-openshift/crunchy. Update workflows to bcgov/actions-openshift/crunchy (pin a release, not @main). Inputs keep their names. See https://github.com/bcgov/actions-openshift/tree/main/crunchy"
+
     - shell: bash
       id: vars
       run: |
