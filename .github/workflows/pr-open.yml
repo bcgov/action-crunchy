@@ -13,7 +13,7 @@ permissions: {}
 jobs:
   deploy-db-computed: # with s3 and computed release name
     name: Deploy Database Computed
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -41,7 +41,7 @@ jobs:
           echo "Error! At least one output is empty. Verify outputs." && exit 1
   deploy-db-manual: # without s3 , only pvc and manual release name
     name: Deploy Database Explicit Release Name
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -72,7 +72,7 @@ jobs:
     name: Results
     needs: [deploy-db-computed, deploy-db-manual]
     if: always()
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 1
     steps:
       - name: Log Job Results Context
