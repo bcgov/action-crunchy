@@ -145,3 +145,66 @@ crunchy: # enable it for TEST and PROD, for PR based pipelines simply use single
         - '{{ .Values.global.config.dbName }}'
         - 'postgres'
         
+# This is a separate backup configuration using the BC GOV backup container. Used for both longer retention and disaster recovery.
+# https://github.com/bcgov/backup-container
+backup-storage:
+  enabled: false
+  image:
+    repository: ghcr.io/bcgov/backup-container
+    pullPolicy: IfNotPresent
+    tag: 2.13.0
+
+  backupConfig: |
+    postgres=pg_service:5432/db_name # change for your instance
+    0 1 * * * default ./backup.sh -s
+
+# Currently verification is not working because the backup container doesn't have PGAUDIT or POSTGIS extensions installed, which are required to run the verification. 
+# Once the backup container is updated to include these extensions, we can enable the verification schedule below.
+#     0 4 * * * default ./backup.sh -s -v all
+
+  db:
+    enabled: false
+    secretName: ""
+    usernameKey: ""
+    passwordKey: ""
+
+  env:
+    ENVIRONMENT_FRIENDLY_NAME:
+      value: "$PROJECT_NAME Database"
+    BACKUP_STRATEGY:
+      value: "rolling"
+    DAILY_BACKUPS:
+      value: "7"
+    WEEKLY_BACKUPS:
+      value: "4"
+    MONTHLY_BACKUPS:
+      value: "2"
+    S3_BUCKET:
+      value: "" # DO NOT UPLOAD TO GITHUB.
+      secure: true
+    S3_USER:
+      value: "" # DO NOT UPLOAD TO GITHUB.
+      secure: true
+    S3_PASSWORD:
+      value: "" # DO NOT UPLOAD TO GITHUB.
+      secure: true
+    S3_ENDPOINT:
+      value: "" # DO NOT UPLOAD TO GITHUB.
+      secure: true
+    S3_PRUNE_BACKUPS:
+      value: "true"
+
+  persistence:
+    backup:
+      size: 1Gi
+      storageClassName: netapp-block-standard
+    verification:
+      size: 100Mi
+      storageClassName: netapp-block-standard
+
+  resources:
+    limits:
+      memory: 128Mi
+    requests:
+      cpu: 10m
+      memory: 32Mi
