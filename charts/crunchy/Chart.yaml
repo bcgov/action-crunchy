@@ -24,4 +24,8 @@ version: 5.8.5
 # It is recommended to use it with quotes.
 #Current Crunchy Operator Version
 appVersion: "5.8.5"
-
+dependencies:
+  - name: backup-storage
+    version: "0.1.18"
+    repository: "https://bcgov.github.io/helm-charts"
+    condition: backup-storage.enabled
